@@ -44,6 +44,19 @@ button:focus-visible, select:focus-visible, summary:focus-visible{outline:2px so
 .ov-card .eyebrow{font:700 13px/1 var(--cond); letter-spacing:.14em; text-transform:uppercase; color:#C9CDD2; margin:0}
 .ov-card h2{font-family:var(--display); font-weight:400; font-size:clamp(28px,6vw,56px); line-height:1.02; margin:0; text-wrap:balance; color:var(--win,#F2B705); text-shadow:0 3px 0 rgba(0,0,0,.5)}
 .ov-card .sub{margin:0; color:#D6D9DC}
+.ov-card{max-height:100%; overflow:auto}
+.board{width:min(580px, 100%); display:grid; gap:4px; text-align:left; font-size:14px}
+.brow{display:grid; grid-template-columns:16px minmax(0,1fr) auto 56px 40px; gap:10px; align-items:center; padding:6px 10px; border-radius:8px; background:rgba(255,255,255,.06)}
+.brow.head{background:none; padding-block:0; font:700 11px/1 var(--cond); letter-spacing:.1em; text-transform:uppercase; color:#AEB3B9}
+.brow.head span:nth-child(n+4){text-align:right}
+.brow.win{background:rgba(242,183,5,.16); box-shadow:inset 0 0 0 1px rgba(242,183,5,.55)}
+.brow .sw{width:16px; height:10px; border-radius:3px}
+.brow b{font-weight:700; color:#F2F3F0; overflow-wrap:anywhere}
+.brow small{display:block; font:600 11px/1.2 var(--cond); letter-spacing:.03em; color:#AEB3B9}
+.brow .num{font:700 16px/1 var(--cond); font-variant-numeric:tabular-nums; text-align:right; color:#F2F3F0}
+.pips{font:700 13px/1 var(--cond); letter-spacing:.1em; color:var(--hazard); white-space:nowrap}
+.mvp{display:inline-block; margin-left:6px; padding:2px 4px; border-radius:3px; background:var(--hazard); color:#17191C; font:700 10px/1 var(--cond); letter-spacing:.08em; vertical-align:2px}
+.count{margin:0; font:700 13px/1 var(--cond); letter-spacing:.12em; text-transform:uppercase; color:#C9CDD2}
 .row{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
 .start{font:700 15px/1 var(--body); letter-spacing:.06em; text-transform:uppercase; background:var(--hazard); color:#17191C; border:0; border-radius:8px; padding:13px 18px; cursor:pointer; box-shadow:inset 0 -3px 0 rgba(0,0,0,.2)}
 .start:hover{filter:brightness(1.06)}
@@ -188,6 +201,8 @@ button:disabled{opacity:.5; cursor:not-allowed}
           <p class="eyebrow" id="ovEyebrow"></p>
           <h2 id="ovTitle"></h2>
           <p class="sub" id="ovSub"></p>
+          <div class="board" id="ovBoard" hidden></div>
+          <p class="count" id="ovCount" hidden></p>
           <div class="row">
             <button class="start" id="ovPrimary" type="button"></button>
             <button class="ghost" id="ovMiddle" type="button"></button>
@@ -236,10 +251,37 @@ button:disabled{opacity:.5; cursor:not-allowed}
             <button type="button" data-diff="hard">Hard</button>
           </div>
         </div>
+        <div class="field" id="sizeField" hidden>
+          <h2>Battle royale size</h2>
+          <div class="seg small" id="sizeSeg">
+            <button type="button" data-size="3">3</button>
+            <button type="button" data-size="4">4</button>
+            <button type="button" data-size="5">5</button>
+            <button type="button" data-size="6">6</button>
+            <button type="button" data-size="7">7</button>
+            <button type="button" data-size="8">8 cars</button>
+          </div>
+        </div>
+        <div class="field">
+          <h2>Match length</h2>
+          <div class="seg small" id="roundsSeg">
+            <button type="button" data-rounds="3">First to 3</button>
+            <button type="button" data-rounds="5">First to 5</button>
+            <button type="button" data-rounds="0">Endless</button>
+          </div>
+        </div>
+        <div class="field">
+          <h2>Twists</h2>
+          <div class="seg small" id="twistSeg">
+            <button type="button" data-tw="off">Off</button>
+            <button type="button" data-tw="random">Random</button>
+            <button type="button" data-tw="always">Every round</button>
+          </div>
+        </div>
         <div class="field" id="carsField">
           <h2>Cars</h2>
           <div class="slots" id="slotList"></div>
-          <p class="note" id="royaleNote" hidden>7 more cars with random weapons join as CPU drivers.</p>
+          <p class="note" id="royaleNote" hidden></p>
         </div>
         <div class="field">
           <h2 id="editTitle">Car 1 loadout</h2>
@@ -252,6 +294,7 @@ button:disabled{opacity:.5; cursor:not-allowed}
 
       <section class="view" id="rosterView" hidden>
         <div class="roster-head"><h2 id="rosterTitle">Fight</h2><span class="clock" id="clock">0:00</span></div>
+        <p class="note" id="twistNote" hidden></p>
         <ol class="list" id="rosterList"></ol>
         <div class="row">
           <button class="btn" id="pauseBtn" type="button">Pause</button>
@@ -342,6 +385,9 @@ const MAPS = {
   stunt:   { name: 'Stunt park', text: 'Ramps launch you into the air. Land on someone to crush them.', thumb: 'linear-gradient(90deg,transparent 20%,#F08A1C 20% 32%,transparent 32% 68%,#F08A1C 68% 80%,transparent 80%),#34383E' },
   ice:     { name: 'Frozen lake', text: 'Slippery ice and freezing water holes. Watch your braking.', thumb: 'radial-gradient(circle at 35% 50%,#174865 0 6px,transparent 7px),radial-gradient(circle at 70% 50%,#174865 0 6px,transparent 7px),#BCD8E6' },
   foundry: { name: 'Foundry', text: 'Lava pits burn you and the walls are spiked. Slam into them and it hurts.', thumb: 'radial-gradient(circle at 50% 50%,#FFB02E 0 4px,#E0470F 5px 8px,transparent 9px),#2A2422' },
+  pinball: { name: 'Pinball', text: 'Bumpers fling you across the arena and a spinning bar sweeps the middle.', thumb: 'radial-gradient(circle at 22% 50%,#FF7AD9 0 5px,transparent 6px),radial-gradient(circle at 78% 50%,#FF7AD9 0 5px,transparent 6px),linear-gradient(90deg,transparent 35%,#5AC8FF 35% 65%,transparent 65%),#1F1830' },
+  factory: { name: 'Factory', text: 'Conveyor belts shove you around and presses slam down. Get out when you see the red warning.', thumb: 'linear-gradient(transparent 20%,#1E2023 20% 36%,transparent 36% 64%,#1E2023 64% 80%,transparent 80%),repeating-linear-gradient(90deg,#F2B705 0 4px,#33363B 4px 8px)' },
+  meteor: { name: 'Meteor Crater', text: 'Meteors crash down on the marked spots every few seconds. Keep moving.', thumb: 'radial-gradient(circle at 62% 45%,#FFC857 0 3px,#FF6A1A 4px 7px,transparent 8px),radial-gradient(circle at 30% 60%,#1A120E 0 5px,transparent 6px),#3B2A22' },
 };
 const MORDER = Object.keys(MAPS);
 
@@ -351,6 +397,21 @@ const PICKUPS = {
   nitro:   { name: 'Nitro',   color: '#F2B705' },
   rage:    { name: 'Rage',    color: '#FF5A36' },
 };
+
+const TWISTS = {
+  giant:     { name: 'Giant Weapons', text: 'Every weapon is 1.5× bigger.' },
+  tiny:      { name: 'Tiny Cars', text: 'Every car is shrunk way down.' },
+  bigcars:   { name: 'Big Head Cars', text: 'Every car is super-sized.' },
+  ice:       { name: 'Ice Rink', text: 'The whole map is slippery.' },
+  turbo:     { name: 'Turbo', text: 'Everything runs faster: cars, weapons and cooldowns.' },
+  glass:     { name: 'Glass Cannon', text: 'All damage is doubled.' },
+  bouncy:    { name: 'Bouncy Walls', text: 'Walls and obstacles fling you back hard.' },
+  frenzy:    { name: 'Pickup Frenzy', text: 'Pickups rain down nonstop.' },
+  mystery:   { name: 'Mystery Weapons', text: 'Everyone gets a random weapon this round.' },
+  night:     { name: 'Night Drive', text: 'Lights out. You only see what headlights and fire light up.' },
+  overdrive: { name: 'Overdrive Everything', text: 'Every car’s ultimate stays on the whole round.' },
+};
+const TORDER = Object.keys(TWISTS);
 
 // CPU skill: how often they think, how willing they are to use abilities, aim quality, speed.
 const DIFF = {
@@ -364,7 +425,7 @@ const MIRROR = { sword: 1, dagger: 1, spear: 1, scythe: 1, hammer: 1, shield: 1,
 
 // ---------- game state ----------
 let cars = [], arrows = [], parts = [], clouds = [], rings = [], pickups = [], oils = [], mines = [], hooks = [];
-let level = { map: 'lot', obstacles: [], ramps: [], zones: [], blockers: [], ice: false, spikes: false };
+let level = { map: 'lot', obstacles: [], ramps: [], zones: [], blockers: [], ice: false, spikes: false, belts: [], presses: [], meteors: [], meteorOn: false, meteorT: 0, spinner: null, dyn: [], noSpawn: [] };
 let mode = 'duel', diff = DIFF.normal;
 let pickupT = 0, state = 'demo', prevState = null;
 let now = 0, fightTime = 0, freeze = 0, lastFreeze = -9, shake = 0, stepCount = 0;
@@ -375,7 +436,7 @@ let config = null, hasHuman = false, twoPlayer = false;
 
 function makeCar(id, type, gadget, driver, team, x, y, a, alt) {
   const k = KIT[type];
-  return {
+  const c = {
     id, type, k, gadget, driver, team, x, y, a, vx: 0, vy: 0,
     hp: k.hp, maxHp: k.hp, alive: true, deadAt: 0, r: k.r, mass: k.mass,
     color: alt ? k.alt : k.color, w: makeWeapon(type),
@@ -385,9 +446,31 @@ function makeCar(id, type, gadget, driver, team, x, y, a, alt) {
     inv: 0, barrier: 0, barrierT: 0, nitroT: 0, rageT: 0, emp: 0, oilT: 0,
     air: 0, airT: 1, burrow: 0, wet: false, zoneT: 0, lastWallHit: -9,
     segBuf: [], segN: 0, pid: '', name: '', netSeen: null,
+    sc: 1, len: k.len, wid: k.wid, brk: 0, bigW: false, poisonBy: null, burnBy: null, lastBy: null, lastByT: -9,
     input: { thr: 0, steer: 0, boost: false, special: false, gadget: false, ult: false },
     ai: { orbit: Math.random() < .5 ? 1 : -1, flipT: rand(2, 5), stuck: 0, rev: 0, revSteer: 1, peel: 0, think: rand(.2, .5), aimT: 0, aimCool: 0 },
   };
+  applyTwist(c);
+  return c;
+}
+
+// round state shared by solo, host and online players
+const round = { n: 0, twist: null, map: 'lot' };
+function applyTwist(c) {
+  const tw = round.twist;
+  if (tw === 'tiny' || tw === 'bigcars') {
+    c.sc = tw === 'tiny' ? .68 : 1.4;
+    c.r = c.k.r * c.sc; c.len = c.k.len * c.sc; c.wid = c.k.wid * c.sc;
+  }
+  if (tw === 'giant') {
+    const w = c.w;
+    if (w.reach) w.reach *= 1.5;
+    if (w.chain) w.chain *= 1.5;
+    if (w.range) w.range *= 1.4;
+    if (w.arc) w.arc = Math.min(2.6, w.arc * 1.3);
+    c.bigW = true;
+  }
+  if (tw === 'overdrive') c.ultT = 9999;
 }
 
 // ---------- canvas ----------
@@ -415,7 +498,8 @@ function rr(x, y, w, h, r, g = ctx) {
 
 // ---------- maps ----------
 function buildLevel(id) {
-  const L = { map: id, obstacles: [], ramps: [], zones: [], blockers: [], ice: id === 'ice', spikes: id === 'foundry' };
+  const L = { map: id, obstacles: [], ramps: [], zones: [], blockers: [], ice: id === 'ice', spikes: id === 'foundry',
+    belts: [], presses: [], meteors: [], meteorOn: id === 'meteor', meteorT: 2.5, spinner: null, dyn: [], noSpawn: [] };
   const sc = Math.min(AW / 1200, AH / 800);
   const P = (fx, fy) => [AW * fx, AH * fy];
   const circle = (kind, fx, fy, r) => { const [x, y] = P(fx, fy); L.obstacles.push({ kind, x, y, r: r * sc }); };
@@ -438,7 +522,24 @@ function buildLevel(id) {
     case 'foundry':
       zone('lava', .5, .5, 74); zone('lava', .3, .22, 46); zone('lava', .7, .78, 46);
       break;
+    case 'pinball':
+      for (const [fx, fy] of [[.36, .3], [.64, .3], [.36, .7], [.64, .7]]) { circle('bumper', fx, fy, 34); L.obstacles[L.obstacles.length - 1].flash = 0; }
+      L.spinner = { x: AW * .5, y: AH * .5, len: 118 * sc, r: 11, a: 0, w: 1.1 };
+      break;
+    case 'factory': {
+      const bw = AW * .4, bh = 64 * sc;
+      L.belts.push({ x: AW * .5, y: AH * .27, w: bw, h: bh, dir: 1 }, { x: AW * .5, y: AH * .73, w: bw, h: bh, dir: -1 });
+      [.34, .5, .66].forEach((fx, i) => L.presses.push({ x: AW * fx, y: AH * .5, s: 100 * sc, t: i * 2 }));
+      break;
+    }
+    case 'meteor':
+      zone('lava', .5, .27, 36); zone('lava', .5, .73, 36);
+      circle('rock', .33, .5, 30); circle('rock', .67, .5, 30);
+      break;
   }
+  if (L.spinner) L.blockers.push({ x: L.spinner.x, y: L.spinner.y, r: L.spinner.len * .85 });
+  for (const p of L.presses) L.noSpawn.push({ x: p.x, y: p.y, r: p.s * .75 });
+  for (const b of L.belts) L.noSpawn.push({ x: b.x, y: b.y, r: 0, w: b.w, h: b.h });
   // circles the CPU steers around (rects approximated by their half-diagonal)
   for (const o of L.obstacles) L.blockers.push({ x: o.x, y: o.y, r: o.r || Math.hypot(o.w, o.h) / 2 });
   for (const z of L.zones) L.blockers.push({ x: z.x, y: z.y, r: z.r });
@@ -447,6 +548,9 @@ function buildLevel(id) {
 
 function blockedAt(x, y, pad) {
   for (const b of level.blockers) if (Math.hypot(x - b.x, y - b.y) < b.r + pad) return true;
+  for (const b of level.noSpawn) {
+    if (b.w ? Math.abs(x - b.x) < b.w / 2 + pad && Math.abs(y - b.y) < b.h / 2 + pad : Math.hypot(x - b.x, y - b.y) < b.r + pad) return true;
+  }
   for (const r of level.ramps) if (Math.hypot(x - r.x, y - r.y) < r.wid / 2 + pad) return true;
   return false;
 }
@@ -456,7 +560,7 @@ function buildFloor() {
   const g = baseCv.getContext('2d');
   g.setTransform(FS, 0, 0, FS, 0, 0);
   const m = level.map, ice = m === 'ice';
-  g.fillStyle = { lot: '#2A2D32', junk: '#3A342D', stunt: '#34383E', ice: '#BCD8E6', foundry: '#2A2422' }[m];
+  g.fillStyle = { lot: '#2A2D32', junk: '#3A342D', stunt: '#34383E', ice: '#BCD8E6', foundry: '#2A2422', pinball: '#1F1830', factory: '#33363B', meteor: '#3B2A22' }[m];
   g.fillRect(0, 0, AW, AH);
   const specks = Math.round(AW * AH / 90);
   for (let i = 0; i < specks; i++) {
@@ -490,6 +594,43 @@ function buildFloor() {
     g.fillStyle = 'rgba(255,255,255,.07)';
     for (let x = WALL + 8; x < AW; x += 90) for (let y = WALL + 8; y < AH; y += 90) { g.fillRect(x, y, 3, 3); g.fillRect(x + 74, y + 74, 3, 3); }
   }
+  if (m === 'pinball') {
+    g.lineWidth = 3;
+    for (const o of level.obstacles) { g.strokeStyle = 'rgba(255,122,217,.28)'; g.beginPath(); g.arc(o.x, o.y, o.r + 22, 0, TAU); g.stroke(); }
+    const S = level.spinner;
+    g.strokeStyle = 'rgba(90,200,255,.25)'; g.setLineDash([14, 12]); g.beginPath(); g.arc(S.x, S.y, S.len + 16, 0, TAU); g.stroke(); g.setLineDash([]);
+    g.strokeStyle = 'rgba(90,200,255,.12)'; g.lineWidth = 2;
+    for (let x = WALL + 60; x < AW - WALL; x += 60) { g.beginPath(); g.moveTo(x, WALL); g.lineTo(x, AH - WALL); g.stroke(); }
+  } else if (m === 'factory') {
+    g.strokeStyle = 'rgba(242,183,5,.35)'; g.lineWidth = 4; g.setLineDash([22, 16]);
+    g.strokeRect(WALL + 50, WALL + 50, AW - 2 * WALL - 100, AH - 2 * WALL - 100); g.setLineDash([]);
+    for (const b of level.belts) {
+      g.fillStyle = '#1E2023'; g.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h);
+      g.fillStyle = '#6E747B'; g.fillRect(b.x - b.w / 2, b.y - b.h / 2 - 5, b.w, 5); g.fillRect(b.x - b.w / 2, b.y + b.h / 2, b.w, 5);
+      g.fillStyle = '#4A4F57'; g.beginPath(); g.arc(b.x - b.w / 2, b.y, b.h / 2, 0, TAU); g.arc(b.x + b.w / 2, b.y, b.h / 2, 0, TAU); g.fill();
+    }
+    for (const p of level.presses) {
+      const h = p.s / 2;
+      g.save(); g.beginPath(); g.rect(p.x - h - 8, p.y - h - 8, p.s + 16, p.s + 16); g.rect(p.x - h, p.y - h, p.s, p.s); g.clip('evenodd');
+      g.fillStyle = '#F2B705'; g.fillRect(p.x - h - 8, p.y - h - 8, p.s + 16, p.s + 16);
+      g.fillStyle = '#1A1B1D';
+      for (let x = p.x - h - 8 - p.s; x < p.x + h + 8; x += 14) { g.beginPath(); g.moveTo(x, p.y - h - 8); g.lineTo(x + 7, p.y - h - 8); g.lineTo(x + 7 + p.s + 16, p.y + h + 8); g.lineTo(x + p.s + 16, p.y + h + 8); g.closePath(); g.fill(); }
+      g.restore();
+      g.fillStyle = '#26282C'; g.fillRect(p.x - h, p.y - h, p.s, p.s);
+      g.fillStyle = 'rgba(255,255,255,.12)';
+      for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { g.beginPath(); g.arc(p.x + dx * (h - 10), p.y + dy * (h - 10), 3, 0, TAU); g.fill(); }
+    }
+  } else if (m === 'meteor') {
+    g.lineCap = 'round';
+    for (let i = 0; i < 16; i++) {
+      let x = rand(80, AW - 80), y = rand(80, AH - 80);
+      g.beginPath(); g.moveTo(x, y);
+      for (let k = 0; k < 5; k++) { x += rand(-45, 45); y += rand(-45, 45); g.lineTo(x, y); }
+      g.strokeStyle = 'rgba(255,110,30,.28)'; g.lineWidth = 7; g.stroke();
+      g.strokeStyle = 'rgba(255,190,80,.55)'; g.lineWidth = 2; g.stroke();
+    }
+    for (let i = 0; i < 10; i++) { const x = rand(60, AW - 60), y = rand(60, AH - 60), r = rand(14, 34); g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 2; g.stroke(); }
+  }
   // hazard zones
   for (const z of level.zones) {
     if (z.kind === 'water') {
@@ -521,6 +662,7 @@ function buildFloor() {
   }
   // obstacles
   for (const o of level.obstacles) {
+    if (o.kind === 'bumper') continue;   // bumpers are drawn live so they can flash
     g.fillStyle = 'rgba(0,0,0,.4)';
     if (o.w) { g.fillRect(o.x - o.w / 2 + 5, o.y - o.h / 2 + 7, o.w, o.h); }
     else { g.beginPath(); g.arc(o.x + 5, o.y + 7, o.r, 0, TAU); g.fill(); }
@@ -540,6 +682,13 @@ function buildFloor() {
       gr.addColorStop(0, '#B9BEC4'); gr.addColorStop(1, '#6E747B');
       g.fillStyle = gr; g.beginPath(); g.arc(o.x, o.y, o.r, 0, TAU); g.fill();
       g.strokeStyle = '#F08A1C'; g.lineWidth = 5; g.beginPath(); g.arc(o.x, o.y, o.r - 3, 0, TAU); g.stroke();
+    } else if (o.kind === 'rock') {
+      const gr = g.createRadialGradient(o.x - o.r * .35, o.y - o.r * .35, 2, o.x, o.y, o.r);
+      gr.addColorStop(0, '#8A6E5C'); gr.addColorStop(1, '#4A362B');
+      g.fillStyle = gr; g.beginPath();
+      for (let i = 0; i < 9; i++) { const a = i / 9 * TAU, rad = o.r * (.85 + ((i * 37) % 10) / 60); g.lineTo(o.x + Math.cos(a) * rad, o.y + Math.sin(a) * rad); }
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 2; g.stroke();
     } else if (o.kind === 'iceblock') {
       const gr = g.createRadialGradient(o.x - o.r * .3, o.y - o.r * .3, 2, o.x, o.y, o.r);
       gr.addColorStop(0, '#FFFFFF'); gr.addColorStop(1, '#8CC3E0');
@@ -555,6 +704,13 @@ function buildFloor() {
     g.fillStyle = 'rgba(120,170,200,.35)'; for (let i = 0; i < 120; i++) { g.beginPath(); g.arc(rand(0, AW), rand(0, AH), rand(3, 9), 0, TAU); g.fill(); }
   } else if (m === 'foundry') {
     g.fillStyle = '#50565E'; g.fillRect(0, 0, AW, AH);
+  } else if (m === 'pinball') {
+    g.fillStyle = '#FF7AD9'; g.fillRect(0, 0, AW, AH);
+    g.fillStyle = '#2A1F44';
+    for (let x = 0; x < AW + AH; x += 28) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 14, 0); g.lineTo(x + 14 - AH, AH); g.lineTo(x - AH, AH); g.closePath(); g.fill(); }
+  } else if (m === 'meteor') {
+    g.fillStyle = '#2A1E18'; g.fillRect(0, 0, AW, AH);
+    g.fillStyle = 'rgba(120,90,70,.5)'; for (let i = 0; i < 160; i++) { g.beginPath(); g.arc(rand(0, AW), rand(0, AH), rand(3, 8), 0, TAU); g.fill(); }
   } else {
     g.fillStyle = '#F2B705'; g.fillRect(0, 0, AW, AH);
     g.fillStyle = '#1A1B1D';
@@ -618,15 +774,16 @@ function driveCar(c, dt) {
   c.vx = fx * vf + nx * vl; c.vy = fy * vf + ny * vl;
   c.x += c.vx * dt; c.y += c.vy * dt;
   c.slip = Math.abs(vl);
+  c.brk = thr < 0 && vf > 20 ? 1 : 0;
 }
 
 function wallCollide(c) {
-  const r = c.r;
+  const r = c.r, e = round.twist === 'bouncy' ? -1.2 : -.45;
   let imp = 0, px = c.x, py = c.y;
-  if (c.x < WALL + r) { c.x = WALL + r; px = WALL; if (c.vx < 0) { imp = Math.max(imp, -c.vx); c.vx *= -.45; } }
-  if (c.x > AW - WALL - r) { c.x = AW - WALL - r; px = AW - WALL; if (c.vx > 0) { imp = Math.max(imp, c.vx); c.vx *= -.45; } }
-  if (c.y < WALL + r) { c.y = WALL + r; py = WALL; if (c.vy < 0) { imp = Math.max(imp, -c.vy); c.vy *= -.45; } }
-  if (c.y > AH - WALL - r) { c.y = AH - WALL - r; py = AH - WALL; if (c.vy > 0) { imp = Math.max(imp, c.vy); c.vy *= -.45; } }
+  if (c.x < WALL + r) { c.x = WALL + r; px = WALL; if (c.vx < 0) { imp = Math.max(imp, -c.vx); c.vx *= e; } }
+  if (c.x > AW - WALL - r) { c.x = AW - WALL - r; px = AW - WALL; if (c.vx > 0) { imp = Math.max(imp, c.vx); c.vx *= e; } }
+  if (c.y < WALL + r) { c.y = WALL + r; py = WALL; if (c.vy < 0) { imp = Math.max(imp, -c.vy); c.vy *= e; } }
+  if (c.y > AH - WALL - r) { c.y = AH - WALL - r; py = AH - WALL; if (c.vy > 0) { imp = Math.max(imp, c.vy); c.vy *= e; } }
   if (imp > 170) {
     sparks(px, py, 4, '#FFE7A0');
     sfx.thud(imp);
@@ -659,9 +816,196 @@ function obstacleCollide(c) {
     c.x += nx * push; c.y += ny * push;
     const vn = c.vx * nx + c.vy * ny;
     if (vn < 0) {
-      c.vx -= 1.45 * vn * nx; c.vy -= 1.45 * vn * ny;
-      if (-vn > 170) { sfx.thud(-vn); sparks(c.x - nx * c.r, c.y - ny * c.r, 4, '#FFE7A0'); }
+      const bounce = round.twist === 'bouncy' ? 2.2 : 1.45;
+      c.vx -= bounce * vn * nx; c.vy -= bounce * vn * ny;
+      if (o.kind === 'bumper') {
+        c.vx += nx * 360 / c.mass; c.vy += ny * 360 / c.mass;
+        o.flash = .18; rec('b', level.obstacles.indexOf(o));
+        sparks(c.x - nx * c.r, c.y - ny * c.r, 6, '#FF7AD9'); sfx.clang(true);
+      } else if (-vn > 170) { sfx.thud(-vn); sparks(c.x - nx * c.r, c.y - ny * c.r, 4, '#FFE7A0'); }
     }
+  }
+}
+
+const PRESS_T = 6;   // press cycle: up, red warning, slam, down, lift
+const pressPhase = t => (t < 3.3 ? 'up' : t < 4.6 ? 'warn' : t < 4.85 ? 'slam' : t < 5.4 ? 'down' : 'lift');
+
+function updateHazards(dt) {
+  const L = level;
+  if (L.spinner) spinnerStep(L.spinner, dt);
+  for (const b of L.belts) for (const c of cars) {
+    if (!c.alive || c.air > 0 || c.burrow > 0 || Math.abs(c.x - b.x) > b.w / 2 || Math.abs(c.y - b.y) > b.h / 2) continue;
+    if (b.dir > 0 ? c.vx < 210 : c.vx > -210) c.vx += b.dir * 540 * dt;
+  }
+  for (const p of L.presses) {
+    const before = p.t;
+    p.t = (p.t + dt) % PRESS_T;
+    if (before < 4.85 && p.t >= 4.85) pressSlam(p);
+  }
+  if (L.meteorOn) {
+    L.meteorT -= dt;
+    if (L.meteorT <= 0) { L.meteorT = mode === 'royale' ? rand(1.3, 2.4) : rand(2.1, 3.4); spawnMeteor(); }
+    for (const m of L.meteors) { m.t += dt; if (m.t >= m.T) meteorHit(m); }
+    prune(L.meteors, m => m.t < m.T);
+  }
+  // spots the CPU should get away from right now
+  L.dyn.length = 0;
+  for (const p of L.presses) { const ph = pressPhase(p.t); if (ph === 'warn' || ph === 'slam' || ph === 'down') L.dyn.push({ x: p.x, y: p.y, r: p.s * .75 }); }
+  for (const m of L.meteors) L.dyn.push({ x: m.x, y: m.y, r: m.R + 12 });
+}
+
+function spinnerStep(S, dt) {
+  S.a += S.w * dt;
+  const ux = Math.cos(S.a) * S.len, uy = Math.sin(S.a) * S.len;
+  for (const c of cars) {
+    if (!c.alive || c.air > 0 || c.burrow > 0) continue;
+    const d = distPtSeg(c.x, c.y, S.x - ux, S.y - uy, S.x + ux, S.y + uy);
+    if (d >= S.r + c.r) continue;
+    const px = DP.x, py = DP.y, nx = (c.x - px) / (d || 1), ny = (c.y - py) / (d || 1);
+    c.x += nx * (S.r + c.r - d); c.y += ny * (S.r + c.r - d);
+    const bvx = -S.w * (py - S.y), bvy = S.w * (px - S.x);   // how fast the bar is moving where it touches
+    const rel = (c.vx - bvx) * nx + (c.vy - bvy) * ny;
+    if (rel < 0) {
+      c.vx -= 1.6 * rel * nx; c.vy -= 1.6 * rel * ny;
+      c.vx += nx * 140; c.vy += ny * 140;
+      if (-rel > 120) { sparks(px, py, 5, '#FFE7A0'); sfx.thud(-rel + 100); }
+    }
+  }
+}
+
+function pressSlam(p) {
+  const h = p.s / 2;
+  addRing(p.x, p.y, p.s * .8, .3, '#C9CED4');
+  sparks(p.x, p.y, 14, '#FFE7A0');
+  for (const c of cars) {
+    if (!c.alive || c.air > 0 || c.burrow > 0) continue;
+    if (Math.abs(c.x - p.x) > h + c.r * .4 || Math.abs(c.y - p.y) > h + c.r * .4) continue;
+    const dx = c.x - p.x, dy = c.y - p.y, d = Math.hypot(dx, dy) || 1;
+    c.vx += dx / d * 320 / c.mass; c.vy += dy / d * 320 / c.mass;
+    if (c.ultT <= 0) { c.stun = Math.max(c.stun, .5); c.spinOut = (Math.random() < .5 ? -1 : 1) * 7; }
+    damage(c, 12, c.x, c.y - 12, '#FF8F7A', true, 'hazard', null);
+  }
+  shake = Math.min(18, shake + 8);
+  sfx.slam();
+}
+
+function spawnMeteor() {
+  for (let tries = 0; tries < 20; tries++) {
+    const x = rand(WALL + 80, AW - WALL - 80), y = rand(WALL + 80, AH - WALL - 80);
+    if (blockedAt(x, y, 30) || level.meteors.some(m => Math.hypot(m.x - x, m.y - y) < 160)) continue;
+    level.meteors.push({ x, y, t: 0, T: 1.7, R: 72 });
+    return;
+  }
+}
+
+function meteorHit(m) {
+  addRing(m.x, m.y, m.R + 24, .4, '#FF9A3C');
+  sparks(m.x, m.y, 20, '#FFC857'); smoke(m.x, m.y, 6); debris(m.x, m.y, '#6B4A36', 8);
+  rec('c', m.x, m.y, m.R); drawCrater(m.x, m.y, m.R);
+  for (const c of cars) {
+    if (!c.alive || c.air > 0 || c.burrow > 0) continue;
+    const dx = c.x - m.x, dy = c.y - m.y, d = Math.hypot(dx, dy) || 1;
+    if (d > m.R + c.r) continue;
+    const f = 1 - d / (m.R + c.r) * .55;
+    c.vx += dx / d * 380 * f / c.mass; c.vy += dy / d * 380 * f / c.mass;
+    if (c.ultT <= 0) c.stun = Math.max(c.stun, .3);
+    damage(c, round1(14 * f), c.x, c.y - 12, '#FF8F7A', true, 'hazard', null);
+  }
+  shake = Math.min(18, shake + 10);
+  sfx.boom(.8);
+}
+
+function drawCrater(x, y, R) {
+  const g = gctx.createRadialGradient(x, y, 4, x, y, R * .8);
+  g.addColorStop(0, 'rgba(10,6,4,.75)'); g.addColorStop(.7, 'rgba(40,20,10,.45)'); g.addColorStop(1, 'rgba(40,20,10,0)');
+  gctx.fillStyle = g; gctx.beginPath(); gctx.arc(x, y, R * .8, 0, TAU); gctx.fill();
+  gctx.strokeStyle = 'rgba(255,120,40,.35)'; gctx.lineWidth = 2; gctx.beginPath(); gctx.arc(x, y, R * .45, 0, TAU); gctx.stroke();
+}
+
+// the moving parts of a map, in a compact form that also goes into online snapshots and replays
+function hazState() {
+  const L = level;
+  return {
+    s: L.spinner ? Math.round(L.spinner.a * 1000) / 1000 : 0,
+    p: L.presses.map(p => Math.round(p.t * 100) / 100),
+    m: L.meteors.map(m => [Math.round(m.x), Math.round(m.y), Math.round(m.t * 100) / 100, m.T, m.R]),
+  };
+}
+function applyHaz(h) {
+  if (!h) return;
+  if (level.spinner) level.spinner.a = +h.s || 0;
+  const ps = Array.isArray(h.p) ? h.p : [];
+  level.presses.forEach((p, i) => { p.t = +ps[i] || 0; });
+  level.meteors = (Array.isArray(h.m) ? h.m : []).map(m => ({ x: +m[0] || 0, y: +m[1] || 0, t: +m[2] || 0, T: +m[3] || 1.7, R: +m[4] || 72 }));
+}
+
+function drawHazards(h) {
+  const L = level;
+  if (!h) return;
+  for (const b of L.belts) {   // conveyor chevrons crawl along the belt
+    ctx.save(); ctx.beginPath(); ctx.rect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h); ctx.clip();
+    const off = (((now * 70 * b.dir) % 44) + 44) % 44, d = b.dir * 10;
+    ctx.strokeStyle = 'rgba(242,183,5,.6)'; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.beginPath();
+    for (let x = b.x - b.w / 2 - 44 + off; x < b.x + b.w / 2 + 44; x += 44) { ctx.moveTo(x - d, b.y - b.h * .3); ctx.lineTo(x + d, b.y); ctx.lineTo(x - d, b.y + b.h * .3); }
+    ctx.stroke(); ctx.restore();
+  }
+  for (const o of L.obstacles) {
+    if (o.kind !== 'bumper') continue;
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.arc(o.x + 5, o.y + 7, o.r, 0, TAU); ctx.fill();
+    const gr = ctx.createRadialGradient(o.x - o.r * .3, o.y - o.r * .3, 2, o.x, o.y, o.r);
+    gr.addColorStop(0, '#FFD1F0'); gr.addColorStop(1, '#C23A9A');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#5AC8FF'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(o.x, o.y, o.r - 3, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#2A1F44'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r * .35, 0, TAU); ctx.fill();
+    if (o.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${o.flash / .18 * .8})`; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 4, 0, TAU); ctx.fill(); }
+  }
+  if (L.spinner) {
+    const S = L.spinner;
+    ctx.save(); ctx.translate(S.x, S.y); ctx.rotate(+h.s || 0);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; rr(-S.len + 4, -S.r + 6, S.len * 2, S.r * 2, S.r); ctx.fill();
+    ctx.fillStyle = '#C9CED4'; ctx.strokeStyle = EDGE; ctx.lineWidth = 2; rr(-S.len, -S.r, S.len * 2, S.r * 2, S.r); ctx.fill(); ctx.stroke();
+    ctx.save(); rr(-S.len, -S.r, S.len * 2, S.r * 2, S.r); ctx.clip();
+    ctx.fillStyle = '#FF7AD9';
+    for (let x = -S.len; x < S.len; x += 18) { ctx.beginPath(); ctx.moveTo(x, -S.r); ctx.lineTo(x + 9, -S.r); ctx.lineTo(x + 18, S.r); ctx.lineTo(x + 9, S.r); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    ctx.fillStyle = '#2A1F44'; ctx.beginPath(); ctx.arc(0, 0, 18, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#5AC8FF'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.restore();
+  }
+  L.presses.forEach((p, i) => {
+    const t = Array.isArray(h.p) && h.p[i] !== undefined ? +h.p[i] : p.t, ph = pressPhase(t), hs = p.s / 2;
+    if (ph === 'up') { ctx.fillStyle = '#3DBE62'; ctx.beginPath(); ctx.arc(p.x + hs - 10, p.y - hs + 10, 4, 0, TAU); ctx.fill(); return; }
+    if (ph === 'warn') {
+      const k = (t - 3.3) / 1.3, blink = Math.floor(t * 8) % 2;
+      ctx.fillStyle = `rgba(228,65,43,${.12 + .2 * blink})`; ctx.fillRect(p.x - hs, p.y - hs, p.s, p.s);
+      const sh = hs * (.5 + .5 * k);
+      ctx.fillStyle = `rgba(0,0,0,${.15 + .35 * k})`; ctx.fillRect(p.x - sh, p.y - sh, sh * 2, sh * 2);
+      ctx.strokeStyle = '#E4412B'; ctx.lineWidth = 3; ctx.strokeRect(p.x - hs + 2, p.y - hs + 2, p.s - 4, p.s - 4);
+      return;
+    }
+    const k = ph === 'slam' ? (t - 4.6) / .25 : ph === 'down' ? 1 : 1 - (t - 5.4) / .6;
+    const size = p.s * (1.3 - .3 * k);
+    ctx.globalAlpha = Math.max(0, Math.min(1, k));
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(p.x - hs + 6, p.y - hs + 8, p.s, p.s);
+    ctx.fillStyle = '#7A818A'; ctx.strokeStyle = EDGE; ctx.lineWidth = 3;
+    rr(p.x - size / 2, p.y - size / 2, size, size, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(p.x - size / 2 + 8, p.y - size / 2 + 8, size - 16, 6);
+    ctx.fillStyle = EDGE;
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.beginPath(); ctx.arc(p.x + dx * (size / 2 - 12), p.y + dy * (size / 2 - 12), 4, 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  });
+  for (const m of (Array.isArray(h.m) ? h.m : [])) {   // meteors: target marker, shadow, and the rock coming in
+    const [x, y, t, T, R] = m, k = Math.min(1, t / T);
+    ctx.fillStyle = `rgba(255,74,46,${.1 + .18 * k})`; ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(255,74,46,${.55 + .4 * Math.sin(t * 20)})`; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - R * .4, y); ctx.lineTo(x + R * .4, y); ctx.moveTo(x, y - R * .4); ctx.lineTo(x, y + R * .4); ctx.stroke();
+    ctx.fillStyle = `rgba(0,0,0,${.25 * k})`; ctx.beginPath(); ctx.arc(x, y, R * .45 * k, 0, TAU); ctx.fill();
+    const mx = x - (1 - k) * 260, my = y - (1 - k) * 420, mr = 14 + 8 * k;
+    ctx.strokeStyle = 'rgba(255,150,40,.45)'; ctx.lineWidth = mr; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(mx - 60 * (1 - k * .5), my - 97 * (1 - k * .5)); ctx.lineTo(mx, my); ctx.stroke();
+    const gr = ctx.createRadialGradient(mx - mr * .3, my - mr * .3, 1, mx, my, mr);
+    gr.addColorStop(0, '#FFE08A'); gr.addColorStop(.5, '#FF8A1F'); gr.addColorStop(1, '#8A2A0A');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fill();
   }
 }
 
@@ -739,7 +1083,7 @@ function carCollisions() {
 function skidMark(c) {
   if (c.air > 0 || c.burrow > 0) { c.rear = null; return; }
   const fx = Math.cos(c.a), fy = Math.sin(c.a), nx = -fy, ny = fx;
-  const back = c.k.len / 2 - 8, side = c.k.wid / 2 - 2;
+  const back = c.len / 2 - 8, side = c.wid / 2 - 2;
   const x1 = c.x - fx * back + nx * side, y1 = c.y - fy * back + ny * side;
   const x2 = c.x - fx * back - nx * side, y2 = c.y - fy * back - ny * side;
   if (c.rear && c.slip > 80) {
@@ -758,9 +1102,15 @@ function skidMark(c) {
 const METAL = '#DCE2E8', EDGE = '#2B2F35', WOOD = '#9A6533', GLASS = '#BCD3E6';
 
 function tyre(x, y, w, h) { ctx.fillStyle = '#101113'; rr(x, y, w, h, Math.min(2.5, h / 2)); ctx.fill(); }
+let tail = 0;   // taillights of the car being drawn: 0 normal, 1 braking, 2 reversing
 function lights(xf, yf, xr, yr) {
   ctx.fillStyle = '#FFF4C2'; rr(xf - 2.5, -yf - 2.2, 2.5, 4.4, 1); ctx.fill(); rr(xf - 2.5, yf - 2.2, 2.5, 4.4, 1); ctx.fill();
-  ctx.fillStyle = '#FF4D3D'; rr(xr, -yr - 2, 2, 4, 1); ctx.fill(); rr(xr, yr - 2, 2, 4, 1); ctx.fill();
+  if (tail) {
+    ctx.fillStyle = tail === 1 ? 'rgba(255,40,20,.5)' : 'rgba(255,255,255,.45)';
+    for (const y of [-yr, yr]) { ctx.beginPath(); ctx.arc(xr + 1, y, 6.5, 0, TAU); ctx.fill(); }
+  }
+  ctx.fillStyle = tail === 1 ? '#FF2A14' : tail === 2 ? '#FFFFFF' : '#C2281C';
+  rr(xr - .5, -yr - 2.8, 3.2, 5.6, 1); ctx.fill(); rr(xr - .5, yr - 2.8, 3.2, 5.6, 1); ctx.fill();
 }
 function four(hl, hw, fx, rx, w, h, out) {
   tyre(-hl + rx, -hw - out, w, h); tyre(-hl + rx, hw + out - h, w, h);
@@ -784,15 +1134,17 @@ function drawCar(c, wreck) {
   ctx.save();
   ctx.translate(c.x, c.y);
   if (!wreck && mode === 'team') {
-    ctx.save(); ctx.rotate(c.a); ctx.fillStyle = TEAM_GLOW[c.team];
+    ctx.save(); ctx.rotate(c.a); ctx.scale(c.sc, c.sc); ctx.fillStyle = TEAM_GLOW[c.team];
     ctx.beginPath(); ctx.ellipse(0, 0, hl + 9, hw + 9, 0, 0, TAU); ctx.fill(); ctx.restore();
   }
-  ctx.save(); ctx.translate(3 + lift * 16, 5 + lift * 22); ctx.rotate(c.a);
+  ctx.save(); ctx.translate(3 + lift * 16, 5 + lift * 22); ctx.rotate(c.a); ctx.scale(c.sc, c.sc);
   ctx.fillStyle = `rgba(0,0,0,${.35 - lift * .15})`; rr(-hl - 1, -hw - 1, L + 2, Wd + 2, 8); ctx.fill();
   ctx.restore();
   ctx.rotate(c.a);
+  if (c.sc !== 1) ctx.scale(c.sc, c.sc);
   if (lift > 0) ctx.scale(1 + lift * .35, 1 + lift * .35);
   if (c.inv > 0) ctx.globalAlpha = .45;
+  tail = wreck ? 0 : c.brk ? 1 : c.vx * Math.cos(c.a) + c.vy * Math.sin(c.a) < -15 ? 2 : 0;
   const outline = () => { ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2; ctx.stroke(); };
   switch (c.type) {
     case 'sword': { // Roadster
@@ -851,6 +1203,7 @@ function drawCar(c, wreck) {
       ctx.fillStyle = '#23262B'; rr(hl - 9, -hw + 4, 5, Wd - 8, 1.5); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,.14)'; rr(-hl + 3, -hw + 3, 16, Wd - 6, 2); ctx.fill();
       cab(-6, hw, Wd, 16);
+      lights(hl - 10, hw - 6, -hl, hw - 5);
       break;
     }
     case 'scythe': { // Reaper
@@ -961,6 +1314,7 @@ function drawCar(c, wreck) {
       ctx.restore();
       ctx.fillStyle = '#23262B'; ctx.beginPath(); ctx.arc(-2, 0, 6, 0, TAU); ctx.fill();
       ctx.fillStyle = GLASS; rr(8, -hw + 7, 4, Wd - 14, 1.5); ctx.fill();
+      lights(hl - 6, hw - 8, -hl + 3, hw - 7);
       break;
     }
   }
@@ -999,6 +1353,31 @@ function drawCar(c, wreck) {
     ctx.save(); ctx.strokeStyle = 'rgba(255,238,160,.85)'; ctx.lineWidth = 2; ctx.setLineDash([5, 6]);
     ctx.lineDashOffset = -now * 60;
     ctx.beginPath(); ctx.arc(c.x, c.y, c.r + 13, 0, TAU); ctx.stroke(); ctx.restore();
+  }
+}
+
+const beamSprite = (() => {
+  const s = document.createElement('canvas'); s.width = 256; s.height = 176;
+  const g = s.getContext('2d'), gr = g.createRadialGradient(0, 88, 0, 0, 88, 256);
+  gr.addColorStop(0, 'rgba(255,247,205,.7)'); gr.addColorStop(.45, 'rgba(255,242,190,.25)'); gr.addColorStop(1, 'rgba(255,240,180,0)');
+  g.fillStyle = gr; g.beginPath(); g.moveTo(0, 88); g.arc(0, 88, 256, -.33, .33); g.closePath(); g.fill();
+  return s;
+})();
+
+function drawBeams(list) {
+  for (const c of list) {
+    if (!c.alive || c.burrow > 0) continue;
+    const f = c.len / 2 - 2, L = 150 * c.sc, H = L * 176 / 256;
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a);
+    ctx.globalAlpha = level.ice && !round.twist ? .5 : .75;
+    ctx.drawImage(beamSprite, f, -H / 2, L, H);
+    ctx.globalAlpha = 1;
+    const x = f + 15 * c.sc, h = 9 * c.sc;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 6 * c.sc, -h); ctx.lineTo(x + 4 * c.sc, 0); ctx.lineTo(x - 6 * c.sc, h);
+    ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 7; ctx.stroke();
+    ctx.strokeStyle = c.color; ctx.lineWidth = 3.5; ctx.stroke();
+    ctx.restore();
   }
 }
 
@@ -1071,7 +1450,7 @@ function statText(c) {
 
 // ---------- weapon geometry: capsules (segment + radius), kept in a per-car buffer ----------
 const spearExt = c => (c.type === 'spear' && c.specT > 0 ? 70 : 0);
-const flailBallR = c => 9 * (c.specT > 0 ? 1.3 : 1) * (c.ultT > 0 ? 1.4 : 1);
+const flailBallR = c => 9 * (c.specT > 0 ? 1.3 : 1) * (c.ultT > 0 ? 1.4 : 1) * (c.bigW ? 1.4 : 1);
 const spinMul = c => (c.specT > 0 ? (c.type === 'sword' ? 3 : c.type === 'chainsaw' ? 2 : 1) : 1);
 
 function addSeg(c, x1, y1, x2, y2, r, hit, shield) {
@@ -1125,7 +1504,7 @@ function weaponSegs(c, ang) {
       break;
     }
     case 'drill': {
-      const f = c.k.len / 2 - 2;
+      const f = c.len / 2 - 2;
       addSeg(c, x + ux * f, y + uy * f, x + ux * (f + w.reach), y + uy * (f + w.reach), 6, true);
       break;
     }
@@ -1152,7 +1531,7 @@ function reachMax(c) {
     case 'flail': return w.chain * (c.specT > 0 ? 2 : 1) + 20;
     case 'flame': return c.r + w.range + 10;
     case 'magnet': return c.r + 36;
-    case 'drill': return c.k.len / 2 + w.reach + 8;
+    case 'drill': return c.len / 2 + w.reach + 8;
     default: return c.r + 14;
   }
 }
@@ -1202,14 +1581,14 @@ function timers(c, dt) {
   if (c.burrow > 0) { c.burrow -= dt; if (c.burrow <= 0) { c.burrow = 0; surface(c); } }
   if (c.poison > 0) {
     c.poisonT -= dt;
-    if (c.poisonT <= 0) { c.poisonT = .45; c.poison--; bubbles(c); damage(c, 1, c.x + rand(-8, 8), c.y - 14, '#7CF08F', false, 'poison', null); }
+    if (c.poisonT <= 0) { c.poisonT = .45; c.poison--; bubbles(c); damage(c, 1, c.x + rand(-8, 8), c.y - 14, '#7CF08F', false, 'poison', c.poisonBy); }
   }
   if (c.burn > 0 && c.alive) {
     c.burnT -= dt;
-    if (c.burnT <= 0) { c.burnT = .4; c.burn--; damage(c, 1, c.x + rand(-8, 8), c.y - 14, '#FFB443', false, 'poison', null); }
+    if (c.burnT <= 0) { c.burnT = .4; c.burn--; damage(c, 1, c.x + rand(-8, 8), c.y - 14, '#FFB443', false, 'poison', c.burnBy); }
   }
   if (c.boostT > 0 && Math.random() < .45) {
-    const fx = Math.cos(c.a), fy = Math.sin(c.a), back = c.k.len / 2 + 2;
+    const fx = Math.cos(c.a), fy = Math.sin(c.a), back = c.len / 2 + 2;
     addPart('flame', c.x - fx * back, c.y - fy * back, -fx * 140 + rand(-30, 30), -fy * 140 + rand(-30, 30), .22, rand(3, 6));
   }
   if (c.ultT > 0 && Math.random() < .2) addPart('flame', c.x + rand(-c.r, c.r), c.y + rand(-c.r, c.r), 0, -60, .35, rand(2, 4));
@@ -1287,7 +1666,7 @@ function trySpecial(c) {
       const ox = c.x, oy = c.y;
       c.x = clamp(c.x + fx * 150, WALL + c.r, AW - WALL - c.r);
       c.y = clamp(c.y + fy * 150, WALL + c.r, AH - WALL - c.r);
-      for (let i = 1; i <= 4; i++) parts.push({ k: 'ghost', x: ox + (c.x - ox) * i / 5, y: oy + (c.y - oy) * i / 5, a: c.a, len: c.k.len, wid: c.k.wid, color: c.color, vx: 0, vy: 0, life: .3, max: .3 });
+      for (let i = 1; i <= 4; i++) parts.push({ k: 'ghost', x: ox + (c.x - ox) * i / 5, y: oy + (c.y - oy) * i / 5, a: c.a, len: c.len, wid: c.wid, color: c.color, vx: 0, vy: 0, life: .3, max: .3 });
       c.vx = fx * 330; c.vy = fy * 330; c.inv = .4;
       break;
     }
@@ -1299,7 +1678,7 @@ function trySpecial(c) {
       break;
     }
     case 'ram': c.specT = 1.4; c.boostT = 1.4; c.vx += fx * 200; c.vy += fy * 200; break;
-    case 'scythe': clouds.push({ x: c.x, y: c.y, r: 95, t: 4, tick: 0, team: c.team }); break;
+    case 'scythe': clouds.push({ x: c.x, y: c.y, r: 95, t: 4, tick: 0, team: c.team, owner: c }); break;
     case 'hammer': slam(c); break;
     case 'shield': c.specT = 1.2; break;
     case 'flail': c.specT = 1.5; break;
@@ -1347,7 +1726,7 @@ function tryUlt(c) {
 function tryGadget(c) {
   if (c.gadCd > 0 || c.stun > 0 || c.emp > 0 || c.burrow > 0 || c.air > 0 || !c.alive) return;
   c.gadCd = GADGETS[c.gadget].cd;
-  const fx = Math.cos(c.a), fy = Math.sin(c.a), back = c.k.len / 2 + 22;
+  const fx = Math.cos(c.a), fy = Math.sin(c.a), back = c.len / 2 + 22;
   switch (c.gadget) {
     case 'oil':
       oils.push({ x: c.x - fx * back, y: c.y - fy * back, r: 48, t: 9, team: c.team });
@@ -1461,7 +1840,7 @@ function updateClouds(dt) {
     cl.t -= dt; cl.tick -= dt;
     if (cl.tick <= 0) {
       cl.tick = .5;
-      for (const o of cars) if (o.alive && o.team !== cl.team && o.burrow <= 0 && Math.hypot(o.x - cl.x, o.y - cl.y) < cl.r + o.r * .5) o.poison += 1;
+      for (const o of cars) if (o.alive && o.team !== cl.team && o.burrow <= 0 && Math.hypot(o.x - cl.x, o.y - cl.y) < cl.r + o.r * .5) { o.poison += 1; o.poisonBy = cl.owner; }
     }
     if (Math.random() < dt * 10) addPart('bub', cl.x + rand(-.8, .8) * cl.r, cl.y + rand(-.8, .8) * cl.r, 0, rand(-30, -12), .8, rand(2, 4));
   }
@@ -1575,7 +1954,7 @@ function hit(A, B, x, y) {
     case 'sword': w.dmg += .6; break;
     case 'dagger': w.spin = Math.min(28, w.spin + 1); w.dmg = Math.min(2, w.dmg + .05); break;
     case 'spear': w.dmg += 1; w.reach = Math.min(200, w.reach + 8); break;
-    case 'scythe': B.poison += w.venom; popup(`+${w.venom} poison`, B.x, B.y - B.r - 22, '#7CF08F', 13); w.venom += 1; break;
+    case 'scythe': B.poison += w.venom; B.poisonBy = A; popup(`+${w.venom} poison`, B.x, B.y - B.r - 22, '#7CF08F', 13); w.venom += 1; break;
     case 'hammer':
       kb = 250 * w.kb;
       if (B.ultT <= 0) { B.stun = Math.max(B.stun, Math.min(.6, .3 + .03 * w.hits)); B.spinOut = (Math.random() < .5 ? -1 : 1) * (7 + w.kb * 2); }
@@ -1609,7 +1988,7 @@ function flamePhase() {
       }
       if (!inside) continue;
       w.cd[B.id] = now + .3; w.hits++;
-      B.burn += 1;
+      B.burn += 1; B.burnBy = A;
       w.range = Math.min(200, w.range + 2); w.dmg = Math.min(1.4, w.dmg + .03);
       damage(B, round1(w.dmg * dmgMult(A)), B.x, B.y - 12, '#FFB443', false, '', A);
     }
@@ -1648,6 +2027,7 @@ function impact(x, y, dmg, color, A, B) {
 // kind: 'poison' | 'sudden' | 'hazard' ignore dodges and barriers; 'crit' marks a boosted hit
 function damage(c, dmg, x, y, color, big, kind, by) {
   if (!c.alive || dmg <= 0) return;
+  if (round.twist === 'glass' && kind !== 'sudden') dmg = round1(dmg * 2);
   const raw = kind === 'poison' || kind === 'sudden' || kind === 'hazard';
   if ((c.inv > 0 || c.burrow > 0) && !raw) { popup('DODGE', x, y, '#9EC5FF', 13); return; }
   if (c.barrier > 0 && !raw) {
@@ -1658,13 +2038,19 @@ function damage(c, dmg, x, y, color, big, kind, by) {
     if (dmg <= 0) { c.flash = .05; return; }
   }
   c.hp -= dmg; c.flash = .12;
+  if (by && by !== c) {
+    c.lastBy = by; c.lastByT = now;
+    if (series && state === 'fight' && series.stats[by.id]) series.stats[by.id].dmg += dmg;
+  }
   if (by && by !== c && by.alive && by.ultT <= 0) by.ult = Math.min(100, by.ult + dmg * 2.5);
   if (c.ultT <= 0) c.ult = Math.min(100, c.ult + dmg * .8);
   numPopup(c, dmg, x, y, color, big, kind === 'crit' ? '!' : '');
-  if (c.hp <= .0001) { c.hp = 0; kill(c); }
+  if (c.hp <= .0001) { c.hp = 0; kill(c, by); }
 }
 
-function kill(c) {
+function kill(c, by) {
+  const killer = by && by !== c ? by : c.lastBy && now - c.lastByT < 6 ? c.lastBy : null;
+  if (killer && series && state === 'fight' && series.stats[killer.id]) series.stats[killer.id].kos++;
   c.alive = false; c.poison = 0; c.burn = 0; c.stun = 0; c.barrier = 0; c.ultT = 0; c.deadAt = now;
   lastKO = { x: c.x, y: c.y };
   sparks(c.x, c.y, 22, '#FFC857'); debris(c.x, c.y, c.color, 12); smoke(c.x, c.y, 6);
@@ -1731,8 +2117,9 @@ function stepArrow(a, dt) {
 function updatePickups(dt) {
   pickupT -= dt;
   if (pickupT <= 0) {
-    pickupT = rand(6, 9);
-    if (pickups.length < (cars.length > 2 ? 3 : 2)) spawnPickup();
+    const frenzy = round.twist === 'frenzy';
+    pickupT = frenzy ? rand(.7, 1.4) : rand(6, 9);
+    if (pickups.length < (frenzy ? 9 : cars.length > 2 ? 3 : 2)) spawnPickup();
   }
   for (const p of pickups) {
     p.age += dt;
@@ -1997,7 +2384,7 @@ function drawBlade(c, ang) {
       break;
     }
     case 'drill': {
-      const f = c.k.len / 2 - 2, L = f + w.reach, ph = (w.rot % 1) * 8;
+      const f = c.len / 2 - 2, L = f + w.reach, ph = (w.rot % 1) * 8;
       ctx.fillStyle = '#5E656E'; rr(f - 4, -10, 8, 20, 2); ctx.fill(); ctx.stroke();
       ctx.fillStyle = METAL; ctx.beginPath(); ctx.moveTo(f + 2, -9); ctx.lineTo(L + 4, 0); ctx.lineTo(f + 2, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = 'rgba(43,47,53,.55)'; ctx.lineWidth = 1.5; ctx.beginPath();
@@ -2227,6 +2614,10 @@ function pickPickup(c, dTarget) {
 const GOAL = { x: 0, y: 0 };
 function avoid(c, gx, gy) {
   GOAL.x = gx; GOAL.y = gy;
+  for (const z of level.dyn) {
+    const d = Math.hypot(c.x - z.x, c.y - z.y);
+    if (d < z.r + c.r) { GOAL.x = c.x + (c.x - z.x) / (d || 1) * 180; GOAL.y = c.y + (c.y - z.y) / (d || 1) * 180; return; }
+  }
   for (const z of level.zones) {
     const d = Math.hypot(c.x - z.x, c.y - z.y);
     if (d < z.r + c.r) { GOAL.x = c.x + (c.x - z.x) / (d || 1) * 160; GOAL.y = c.y + (c.y - z.y) / (d || 1) * 160; return; }
@@ -2234,7 +2625,7 @@ function avoid(c, gx, gy) {
   const dx = gx - c.x, dy = gy - c.y, L2 = dx * dx + dy * dy;
   if (L2 < 1 || !level.blockers.length) return;
   let best = null, bt = 2;
-  for (const b of level.blockers) {
+  for (const b of level.blockers.concat(level.dyn)) {
     const t = ((b.x - c.x) * dx + (b.y - c.y) * dy) / L2;
     if (t <= 0 || t >= 1.2) continue;
     const px = c.x + dx * t - b.x, py = c.y + dy * t - b.y, clear = b.r + c.r + 16;
@@ -2403,24 +2794,39 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 
 // ---------- matches ----------
 let floorKey = '';
-function prepareWorld(m, map, diffKey) {
+const royaleArena = n => (n <= 4 ? [1380, 920] : n <= 6 ? [1500, 1000] : [1620, 1080]);
+
+function prepareWorld(m, map, diffKey, n) {
   mode = ARENAS[m] ? m : 'duel';
-  [AW, AH] = ARENAS[mode];
+  [AW, AH] = mode === 'royale' ? royaleArena(n || 8) : ARENAS[mode];
   diff = DIFF[diffKey] || DIFF.normal;
   const mapId = MAPS[map] ? map : 'lot';
   level = buildLevel(mapId);
+  if (round.twist === 'ice' && !level.ice) { level.ice = true; level.iceTwist = true; }
   cars = []; arrows = []; parts = []; clouds = []; rings = []; pickups = []; oils = []; mines = []; hooks = [];
   clashCd = new Array(256).fill(0); lastPop.clear(); lastKO = null;
-  pickupT = 4; now = 0; fightTime = 0; freeze = 0; lastFreeze = -9; shake = 0; stepCount = 0;
+  pickupT = round.twist === 'frenzy' ? 1 : 4; now = 0; fightTime = 0; freeze = 0; lastFreeze = -9; shake = 0; stepCount = 0;
   matchOver = false; suddenDeath = false; sdTick = 1; banner = { text: '', t: 0 };
-  if (floorKey !== mode + mapId) { buildFloor(); floorKey = mode + mapId; }
+  if (floorKey !== mode + mapId + AW) { buildFloor(); floorKey = mode + mapId + AW; }
   resetGround(); resize();
   REC.frames = []; REC.fx = []; replay = null;
   $('replayTag').hidden = true;
 }
 
+function royaleLineup(slots, size) {
+  const list = slots.slice(0, 8).map(x => ({ ...x }));
+  const n = clamp(Math.max(+size || 8, list.length), 3, 8), used = new Set(list.map(x => x.weapon));
+  while (list.length < n) {
+    const pool = ORDER.filter(w => !used.has(w)), w = pick(pool.length ? pool : ORDER);
+    used.add(w);
+    list.push({ weapon: w, gadget: pick(GORDER), driver: 'cpu' });
+  }
+  return list;
+}
+
 function buildMatch(cfg) {
-  prepareWorld(cfg.mode, cfg.map, cfg.diff);
+  const lineup = cfg.mode === 'royale' ? royaleLineup(cfg.slots, cfg.size) : null;
+  prepareWorld(cfg.mode, cfg.map, cfg.diff, lineup ? lineup.length : 0);
   const s = cfg.slots, seen = {};
   const add = (slot, team, fx, fy, a) => {
     const c = makeCar(cars.length, slot.weapon, slot.gadget, slot.driver, team, AW * fx, AH * fy, a, !!seen[slot.weapon]);
@@ -2432,10 +2838,8 @@ function buildMatch(cfg) {
   if (mode === 'duel') { add(s[0], 0, .22, .5, 0); add(s[1], 1, .78, .5, Math.PI); }
   else if (mode === 'team') { add(s[0], 0, .2, .32, 0); add(s[1], 0, .2, .68, 0); add(s[2], 1, .8, .32, Math.PI); add(s[3], 1, .8, .68, Math.PI); }
   else {
-    const list = s.length >= 8 ? s.slice(0, 8)
-      : [s[0], ...ORDER.filter(t => t !== s[0].weapon).sort(() => Math.random() - .5).slice(0, 7).map(t => ({ weapon: t, gadget: pick(GORDER), driver: 'cpu' }))];
-    list.forEach((slot, i) => {
-      const ang = Math.PI / 2 + i * TAU / 8;
+    lineup.forEach((slot, i) => {
+      const ang = Math.PI / 2 + i * TAU / lineup.length;
       add(slot, i, .5 + Math.cos(ang) * .37, .5 + Math.sin(ang) * .36, ang + Math.PI);
     });
   }
@@ -2450,19 +2854,20 @@ function buildMatch(cfg) {
 
 function startDemo() {
   state = 'demo'; sfx.enabled = false;
+  round.n = 0; round.twist = null;
   const pool = ORDER.slice().sort(() => Math.random() - .5);
-  const slots = pool.slice(0, 4).map(t => ({ weapon: t, gadget: pick(GORDER), driver: 'cpu' }));
-  buildMatch({ mode: setup.mode, map: setup.map, diff: 'normal', slots });
+  const slots = pool.slice(0, setup.mode === 'royale' ? setup.size : 4).map(t => ({ weapon: t, gadget: pick(GORDER), driver: 'cpu' }));
+  const map = MAPS[setup.map] ? setup.map : pick(MORDER);
+  buildMatch({ mode: setup.mode, map, diff: 'normal', size: setup.size, slots });
   const what = mode === 'duel' ? `${KIT[slots[0].weapon].name} vs ${KIT[slots[1].weapon].name}` : mode === 'team' ? '2v2' : 'Battle royale';
-  $('demoTag').textContent = `Demo · ${what} · ${MAPS[setup.map].name}`;
+  $('demoTag').textContent = `Demo · ${what} · ${MAPS[map].name}`;
   $('demoTag').hidden = false;
   $('touch').hidden = true;
   hideOverlay();
 }
 
 function startFight(cfg) {
-  config = { mode: cfg.mode, map: cfg.map, diff: cfg.diff, slots: cfg.slots.map(s => ({ ...s })) };
-  buildMatch(config);
+  buildMatch(cfg);
   state = 'countdown'; countdown = 3; lastBeep = 0;
   sfx.init(); sfx.enabled = true;
   $('demoTag').hidden = true;
@@ -2470,14 +2875,178 @@ function startFight(cfg) {
   hideOverlay();
   $('setupView').hidden = true; $('rosterView').hidden = false;
   $('pauseBtn').textContent = 'Pause';
-  $('rosterTitle').textContent = mode === 'duel' ? `${KIT[cars[0].type].name} vs ${KIT[cars[1].type].name}` : mode === 'team' ? '2v2' : 'Battle royale';
+  showRoundInfo();
   buildRoster();
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 }
 
+function showRoundInfo() {
+  const what = mode === 'duel' ? `${KIT[cars[0].type].name} vs ${KIT[cars[1].type].name}` : mode === 'team' ? '2v2' : 'Battle royale';
+  $('rosterTitle').textContent = round.n ? `Round ${round.n} · ${what}` : what;
+  const tw = TWISTS[round.twist];
+  $('twistNote').hidden = !tw;
+  if (tw) $('twistNote').textContent = `Twist: ${tw.name}. ${tw.text}`;
+}
+
 function toSetup() {
+  series = null;
   $('rosterView').hidden = true; $('setupView').hidden = false;
   startDemo();
+}
+
+// ---------- rounds ----------
+// A match is a run of short rounds. First to `target` round wins takes it (0 = endless).
+// The map (and maybe a twist) changes every round, with a scoreboard in between.
+let series = null, seriesCfg = null;
+const seriesView = { target: 0, wins: [], team: false };   // what the roster shows; online players get the host's numbers
+
+function startSeries(cfg) {
+  seriesCfg = { ...cfg, slots: cfg.slots.map(s => ({ ...s })) };
+  const slots = cfg.mode === 'royale' ? royaleLineup(cfg.slots, cfg.size) : cfg.slots.map(s => ({ ...s }));   // same CPUs every round
+  config = { mode: cfg.mode, map: cfg.map, diff: cfg.diff, size: slots.length, slots };
+  series = {
+    target: +cfg.rounds || 0, twists: cfg.twists || 'off', mapSetting: cfg.map,
+    wins: new Array(8).fill(0), totals: slots.map(() => ({ dmg: 0, kos: 0 })), stats: [],
+    done: false, board: null, nextAt: 0, prevMap: '', prevTwist: '',
+  };
+  round.n = 0;
+  startRound();
+}
+
+function startRound() {
+  round.n++;
+  const map = MAPS[series.mapSetting] ? series.mapSetting : pick(MORDER.filter(m => m !== series.prevMap));
+  const twisty = series.twists === 'always' || (series.twists === 'random' && Math.random() < .5);
+  const tw = twisty && TORDER.length ? pick(TORDER.filter(t => t !== series.prevTwist)) : null;
+  series.prevMap = map;
+  if (tw) series.prevTwist = tw;
+  round.map = map; round.twist = tw;
+  series.stats = config.slots.map(() => ({ dmg: 0, kos: 0 }));
+  series.done = false; series.board = null; series.nextAt = 0;
+  seriesView.target = series.target; seriesView.wins = series.wins; seriesView.team = config.mode === 'team';
+  const slots = tw === 'mystery' ? config.slots.map(s => ({ ...s, weapon: pick(ORDER) })) : config.slots;
+  startFight({ mode: config.mode, map, diff: config.diff, size: config.size, slots });
+  if (NET.role === 'host') hostRoundStarted();
+}
+
+function nextRound() {
+  if (!series || series.done || NET.role === 'client') return;
+  hideOverlay();
+  startRound();
+}
+
+const carLabel = c => c.name || (c.driver === 'p1' ? (twoPlayer ? 'Player 1' : 'You') : c.driver === 'p2' ? 'Player 2' : c.k.name);
+
+function roundOver() {
+  const win = cars.find(c => c.alive) || null;
+  const key = !win ? -1 : mode === 'team' ? win.team : win.id;
+  if (key >= 0) series.wins[key]++;
+  series.stats.forEach((st, i) => { series.totals[i].dmg += st.dmg; series.totals[i].kos += st.kos; });
+  series.done = key >= 0 && series.target > 0 && series.wins[key] >= series.target;
+  const board = series.board = makeBoard(win);
+  if (series.done) {   // the final knockout gets its slow-motion replay, then the final standings
+    if (NET.role === 'host') netHostEnd(board);
+    startReplay();
+    return;
+  }
+  state = 'over';
+  series.nextAt = performance.now() + 6500;
+  if (NET.role === 'host') hostSend({ t: 'round', m: NET.matchId, board });
+  showBoard(board);
+}
+
+function makeBoard(win) {
+  const team = mode === 'team', done = series.done;
+  const rows = cars.map(c => {
+    const st = (done ? series.totals : series.stats)[c.id] || { dmg: 0, kos: 0 };
+    return {
+      id: c.id, pid: c.pid || '', name: carLabel(c), sub: `${c.k.name} · ${c.k.car}`, color: c.color, team: c.team,
+      wins: series.wins[team ? c.team : c.id] || 0, dmg: Math.round(st.dmg), kos: st.kos,
+    };
+  });
+  rows.sort((a, b) => b.wins - a.wins || b.dmg - a.dmg);
+  let mvp = -1, best = 0;
+  for (const r of rows) if (r.dmg > best) { best = r.dmg; mvp = r.id; }
+  return {
+    round: round.n, target: series.target, done, team, mvp, rows,
+    teamWins: team ? [series.wins[0], series.wins[1]] : [0, 0],
+    winner: !win ? 0 : team
+      ? { name: win.team ? 'Blue team' : 'Red team', color: TEAM_COLORS[win.team], team: win.team, id: -1, pid: '' }
+      : { name: carLabel(win), color: win.color, team: win.team, id: win.id, pid: win.pid || '' },
+  };
+}
+
+const safeColor = c => (/^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '#FFFFFF');
+const pipText = (w, target) => target ? '●'.repeat(Math.min(w, target)) + '○'.repeat(Math.max(0, target - w)) : `${w} won`;
+function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+
+function renderBoard(box, b) {
+  box.textContent = '';
+  const head = mk('div', 'brow head');
+  for (const t of ['', 'Player', 'Wins', b.done ? 'Total dmg' : 'Damage', 'KOs']) head.appendChild(mk('span', '', t));
+  box.appendChild(head);
+  const me = NET.role === 'solo' ? '' : NET.myId;
+  for (const r of b.rows.slice(0, 8)) {
+    const won = !!b.winner && (b.team ? r.team === b.winner.team : r.id === b.winner.id);
+    const row = mk('div', 'brow' + (won ? ' win' : ''));
+    const sw = mk('span', 'sw'); sw.style.setProperty('--c', safeColor(r.color));
+    const nm = mk('span', 'bn');
+    nm.appendChild(mk('b', '', r.name + (r.pid && r.pid === me ? ' (you)' : '')));
+    if (r.id === b.mvp) nm.appendChild(mk('span', 'mvp', 'MVP'));
+    nm.appendChild(mk('small', '', r.sub));
+    row.append(sw, nm, mk('span', 'pips', pipText(r.wins, b.target)), mk('span', 'num', String(r.dmg)), mk('span', 'num', String(r.kos)));
+    box.appendChild(row);
+  }
+}
+
+function showBoard(b) {
+  const me = NET.role === 'solo' ? '' : NET.myId, mine = cars.find(c => c.driver === 'p1'), w = b.winner;
+  const youWon = !!w && (b.team ? !!mine && !twoPlayer && mine.team === w.team : (!!w.pid && w.pid === me) || w.name === 'You');
+  const what = b.done ? 'the match' : 'the round';
+  const title = !w ? 'Draw! Nobody scores' : b.team ? `${w.name} wins ${what}` : youWon ? `You win ${what}` : `${w.name} wins ${what}`;
+  const eyebrow = b.done ? 'Final standings' : `Round ${b.round} · ${b.target ? 'first to ' + b.target : 'endless'}`;
+  const canReplay = REC.frames.length >= 30, host = NET.role === 'host';
+  let btn;
+  if (NET.role === 'client') btn = canReplay
+    ? { primary: 'Watch replay', onPrimary: startReplay, secondary: 'Leave room', onSecondary: () => leaveRoom() }
+    : { primary: 'Leave room', onPrimary: () => leaveRoom() };
+  else if (b.done) btn = {
+    primary: 'Rematch', onPrimary: host ? hostStart : () => startSeries(seriesCfg), middle: canReplay ? 'Watch replay' : '', onMiddle: startReplay,
+    secondary: host ? 'Back to lobby' : 'Change setup', onSecondary: host ? hostToLobby : toSetup,
+  };
+  else btn = {
+    primary: 'Next round', onPrimary: nextRound, middle: canReplay ? 'Watch replay' : '', onMiddle: startReplay,
+    secondary: host ? 'Back to lobby' : 'End match', onSecondary: host ? hostToLobby : toSetup,
+  };
+  showOverlay({ ...btn, eyebrow, title, sub: b.team ? `Red ${b.teamWins[0]} – ${b.teamWins[1]} Blue` : '', color: w ? w.color : '#F2F3F0', board: b, count: !b.done });
+  $('touch').hidden = !(coarse && cars.some(c => c.driver === 'p1'));
+  updateRoster();
+}
+
+function boardTick() {
+  if (state !== 'over' || $('overlay').hidden || $('ovCount').hidden) return;
+  let text;
+  if (NET.role === 'client') {
+    const left = Math.ceil((NET.boardAt - performance.now()) / 1000);
+    text = left > 0 ? `Next round in ${left}` : 'Waiting for the host…';
+  } else {
+    if (!series || !series.nextAt) return;
+    const left = Math.ceil((series.nextAt - performance.now()) / 1000);
+    if (left <= 0) { nextRound(); return; }
+    text = `Next round in ${left}`;
+  }
+  if ($('ovCount').textContent !== text) $('ovCount').textContent = text;
+}
+
+function afterReplay() {
+  const b = NET.role === 'client' ? NET.board : series && series.board;
+  if (!b) { showResult(); return; }
+  state = 'over';
+  if (!b.done) {
+    if (NET.role === 'client') NET.boardAt = Math.max(NET.boardAt || 0, performance.now() + 1500);
+    else series.nextAt = performance.now() + 4500;
+  }
+  showBoard(b);
 }
 
 function checkMatch(dt) {
@@ -2498,7 +3067,10 @@ function checkMatch(dt) {
   }
   if (matchOver && now >= overAt) {
     if (state === 'demo') startDemo();
-    else if (state === 'fight') { if (NET.role === 'host') netHostEnd(); startReplay(); }
+    else if (state === 'fight') {
+      if (series) roundOver();
+      else { if (NET.role === 'host') netHostEnd(null); startReplay(); }
+    }
   }
 }
 
@@ -2524,6 +3096,7 @@ function snapCar(c) {
     flash: c.flash, poison: c.poison, burn: c.burn, stun: c.stun, barrier: c.barrier, rageT: c.rageT, inv: c.inv,
     specT: c.specT, ultT: c.ultT, ult: c.ult, emp: c.emp, air: c.air, airT: c.airT, burrow: c.burrow,
     boostCd: c.boostCd, specCd: c.specCd, gadCd: c.gadCd, w: Object.assign({}, c.w),
+    sc: c.sc, len: c.len, wid: c.wid, brk: c.brk, vx: c.vx, vy: c.vy, bigW: c.bigW,
   };
 }
 
@@ -2536,6 +3109,7 @@ function recordFrame() {
     oils: oils.map(o => ({ x: o.x, y: o.y, r: o.r, t: o.t })),
     clouds: clouds.map(cl => ({ x: cl.x, y: cl.y, r: cl.r, t: cl.t })),
     pickups: pickups.map(p => ({ type: p.type, x: p.x, y: p.y, age: p.age })),
+    hz: hazState(),
     fx: REC.fx,
   });
   REC.fx = [];
@@ -2559,6 +3133,8 @@ function playFx(e) {
     case 'm': smoke(e[1], e[2], e[3]); break;
     case 'p': popup(e[1], e[2], e[3], e[4], e[5]); break;
     case 'r': rings.push({ x: e[1], y: e[2], t: 0, T: e[4], max: e[3], color: e[5] }); break;
+    case 'b': { const o = level.obstacles[e[1]]; if (o) o.flash = .18; break; }
+    case 'c': drawCrater(e[1], e[2], e[3]); break;
   }
 }
 
@@ -2577,11 +3153,15 @@ function endReplay() {
   if (state !== 'replay') return;
   replay = null; parts = []; rings = [];
   $('replayTag').hidden = true;
-  showResult();
+  afterReplay();
 }
 
 // ---------- overlay ----------
-function showOverlay({ eyebrow, title, sub, color, primary, onPrimary, middle, onMiddle, secondary, onSecondary }) {
+function showOverlay({ eyebrow, title, sub, color, primary, onPrimary, middle, onMiddle, secondary, onSecondary, board, count }) {
+  $('ovBoard').hidden = !board;
+  if (board) renderBoard($('ovBoard'), board);
+  $('ovCount').hidden = !count;
+  if (count) $('ovCount').textContent = '';
   $('ovEyebrow').textContent = eyebrow;
   $('ovTitle').textContent = title;
   $('ovTitle').style.setProperty('--win', color || '#F2B705');
@@ -2601,7 +3181,7 @@ function showResult() {
   updateRoster();
   const win = cars.find(c => c.alive), canReplay = REC.frames.length >= 30;
   let again = {
-    primary: 'Rematch', onPrimary: () => startFight(config),
+    primary: 'Rematch', onPrimary: () => startSeries(seriesCfg),
     middle: canReplay ? 'Watch replay' : '', onMiddle: startReplay,
     secondary: 'Change setup', onSecondary: toSetup,
   };
@@ -2662,7 +3242,7 @@ function buildRoster() {
     li.style.setProperty('--tc', mode === 'team' ? TEAM_COLORS[c.team] : c.color);
     const who = c.driver === 'cpu' ? 'CPU' : c.driver === 'net' ? esc(c.name || 'Player') : c.driver === 'p2' ? 'P2' : twoPlayer ? 'P1' : 'You';
     li.innerHTML = `<span class="sw" style="--c:${c.color}"></span>
-      <div><div class="nm">${c.k.name}<small>${c.k.car}</small><span class="drv${c.driver === 'p1' || c.driver === 'p2' ? ' me' : ''}">${who}</span></div><div class="st"></div></div>
+      <div><div class="nm">${c.k.name}<small>${c.k.car}</small><span class="drv${c.driver === 'p1' || c.driver === 'p2' ? ' me' : ''}">${who}</span><span class="pips"></span></div><div class="st"></div></div>
       <div class="hp"><span class="hpn"></span><div class="bar"><i></i></div></div>
       <div class="meters">
         <div class="mt"><span></span><span class="meter"><i></i></span></div>
@@ -2671,7 +3251,7 @@ function buildRoster() {
       </div>`;
     list.appendChild(li);
     const mts = li.querySelectorAll('.mt');
-    return { c, li, st: li.querySelector('.st'), hpn: li.querySelector('.hpn'), bar: li.querySelector('.bar i'),
+    return { c, li, pips: li.querySelector('.pips'), st: li.querySelector('.st'), hpn: li.querySelector('.hpn'), bar: li.querySelector('.bar i'),
       m: [...mts].map(el => ({ el, label: el.firstElementChild, fill: el.querySelector('.meter i') })) };
   });
   updateRoster();
@@ -2687,6 +3267,8 @@ function updateRoster() {
   for (const r of rosterRows) {
     const c = r.c, hp = Math.ceil(c.hp), pct = Math.round(c.hp / c.maxHp * 100);
     r.hpn.textContent = hp;
+    const pt = round.n ? pipText(seriesView.wins[seriesView.team ? c.team : c.id] || 0, seriesView.target) : '';
+    if (r.pips.textContent !== pt) r.pips.textContent = pt;
     r.bar.style.width = pct + '%';
     r.bar.classList.toggle('low', pct <= 30);
     const fx = [];
@@ -2713,7 +3295,7 @@ function rosterTick(dt) {
 
 // ---------- setup panel ----------
 const setup = {
-  mode: 'duel', map: 'lot', diff: 'normal', sel: 0,
+  mode: 'duel', map: 'random', diff: 'normal', rounds: 3, twists: 'random', size: 8, sel: 0,
   slots: [
     { weapon: 'sword', gadget: 'grapple', driver: 'p1' },
     { weapon: 'flail', gadget: 'oil', driver: 'cpu' },
@@ -2739,7 +3321,12 @@ function renderSetup() {
   document.querySelectorAll('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === setup.mode)));
   document.querySelectorAll('#diffSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.diff === setup.diff)));
   document.querySelectorAll('#mapGrid .map').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.map === setup.map)));
-  $('mapNote').textContent = MAPS[setup.map].text;
+  document.querySelectorAll('#sizeSeg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.size === setup.size)));
+  $('sizeField').hidden = setup.mode !== 'royale';
+  $('royaleNote').textContent = `${setup.size - 1} more car${setup.size === 2 ? '' : 's'} with random weapons join as CPU drivers.`;
+  document.querySelectorAll('#roundsSeg button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.rounds === setup.rounds)));
+  document.querySelectorAll('#twistSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tw === setup.twists)));
+  $('mapNote').textContent = MAPS[setup.map] ? MAPS[setup.map].text : 'A different map every round.';
   let html = '';
   for (let i = 0; i < n; i++) {
     if (setup.mode === 'team' && i % 2 === 0) html += `<div class="team-head" style="--tc:${TEAM_COLORS[i ? 1 : 0]}">${i ? 'Blue team' : 'Red team'}</div>`;
@@ -2763,12 +3350,28 @@ function renderSetup() {
 
 $('weaponGrid').innerHTML = ORDER.map(t => `<button class="chip" type="button" data-w="${t}" style="--c:${KIT[t].color}"><span class="car"></span>${SHORT[t] || KIT[t].name}</button>`).join('');
 $('gadgetSeg').innerHTML = GORDER.map(g => `<button type="button" data-g="${g}">${GADGETS[g].name.replace(' slick', '')}</button>`).join('');
-$('mapGrid').innerHTML = MORDER.map(m => `<button class="map" type="button" data-map="${m}"><span class="thumb" style="--t:${MAPS[m].thumb}"></span>${MAPS[m].name}</button>`).join('');
+const RANDOM_THUMB = 'linear-gradient(90deg,#E4412B,#F2B705,#2FA84F,#2F6FE4,#8E4FD8)';
+$('mapGrid').innerHTML = ['random', ...MORDER].map(m => `<button class="map" type="button" data-map="${m}"><span class="thumb" style="--t:${m === 'random' ? RANDOM_THUMB : MAPS[m].thumb}"></span>${m === 'random' ? 'Random' : MAPS[m].name}</button>`).join('');
 
 const restartDemo = () => { if (state === 'demo') startDemo(); };
 $('modeSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   setup.mode = b.dataset.mode; renderSetup(); restartDemo();
+  if (NET.role === 'host') hostBroadcastLobby();
+});
+$('sizeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  setup.size = +b.dataset.size; renderSetup(); restartDemo();
+  if (NET.role === 'host') hostBroadcastLobby();
+});
+$('roundsSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  setup.rounds = +b.dataset.rounds; renderSetup();
+  if (NET.role === 'host') hostBroadcastLobby();
+});
+$('twistSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  setup.twists = b.dataset.tw; renderSetup();
   if (NET.role === 'host') hostBroadcastLobby();
 });
 $('diffSeg').addEventListener('click', e => {
@@ -2805,7 +3408,7 @@ $('startBtn').addEventListener('click', () => {
   if (NET.role === 'host') { hostStart(); return; }
   if (NET.role === 'client') return;
   const n = slotCount();
-  startFight({ mode: setup.mode, map: setup.map, diff: setup.diff, slots: setup.slots.slice(0, Math.max(n, 1)) });
+  startSeries({ mode: setup.mode, map: setup.map, diff: setup.diff, rounds: setup.rounds, twists: setup.twists, size: setup.size, slots: setup.slots.slice(0, Math.max(n, 1)) });
 });
 $('pauseBtn').addEventListener('click', togglePause);
 $('quitBtn').addEventListener('click', () => { if (NET.role === 'host') hostToLobby(); else if (NET.role === 'client') leaveRoom(); else toSetup(); });
@@ -3064,7 +3667,7 @@ function hostSend(m, relayToo = true) {
 
 function lobbyMsg() {
   return {
-    t: 'lobby', mode: setup.mode, map: setup.map, diff: setup.diff, inMatch: NET.inMatch,
+    t: 'lobby', mode: setup.mode, map: setup.map, diff: setup.diff, rounds: setup.rounds, twists: setup.twists, size: setup.size, inMatch: NET.inMatch,
     players: NET.players.map(p => ({ id: p.id, name: p.name, weapon: p.weapon, gadget: p.gadget, via: p.via })),
   };
 }
@@ -3154,17 +3757,21 @@ function hostStart() {
     [0, 2, 1, 3].forEach((si, k) => { if (P[k]) slots[si] = seat(P[k]); });
     for (let i = 0; i < 4; i++) if (!slots[i]) slots[i] = cpu();
   } else {
-    slots = P.slice(0, 8).map(seat);
-    while (slots.length < 8) slots.push(cpu());
+    slots = P.slice(0, 8).map(seat);   // everyone in the room plays; CPUs fill up to the chosen size
   }
+  startSeries({ mode: setup.mode, map: setup.map, diff: setup.diff, rounds: setup.rounds, twists: setup.twists, size: setup.size, slots });
+}
+
+// called by startRound on the host: tell everyone about the new round
+function hostRoundStarted() {
   NET.matchId++;
   NET.inputs.clear();
   NET.inMatch = true;
-  startFight({ mode: setup.mode, map: setup.map, diff: setup.diff, slots });
   $('pauseBtn').hidden = true;
   $('quitBtn').textContent = 'Back to lobby';
   NET.startMsg = {
-    t: 'start', m: NET.matchId, mode, map: setup.map, diff: setup.diff,
+    t: 'start', m: NET.matchId, mode, map: round.map, diff: config.diff,
+    rd: round.n, tw: round.twist || '', tg: series.target, sw: series.wins.slice(),
     cars: cars.map(c => [c.id, c.type, c.gadget, c.team, c.color === c.k.alt ? 1 : 0, c.pid, c.name, num(c.x, 10), num(c.y, 10), num(c.a, 1000)]),
   };
   NET.fx = []; NET.au = [];
@@ -3173,7 +3780,7 @@ function hostStart() {
 
 function hostToLobby() {
   if (NET.role !== 'host') return;
-  NET.inMatch = false;
+  NET.inMatch = false; series = null;
   hostSend({ t: 'lobbyback' });
   hostBroadcastLobby();
   backToSetupUI();
@@ -3181,7 +3788,7 @@ function hostToLobby() {
 
 // Snapshots: per car a flat array of numbers (see CF/WC/WF) to keep messages small.
 const CF = ['x', 'y', 'a', 'vx', 'vy', 'hp', 'flash', 'poison', 'burn', 'stun', 'barrier', 'rageT', 'inv', 'specT', 'ultT', 'ult', 'emp',
-  'air', 'airT', 'burrow', 'boostCd', 'boostT', 'specCd', 'gadCd', 'maxSpeed', 'nitroT', 'oilT'];
+  'air', 'airT', 'burrow', 'boostCd', 'boostT', 'specCd', 'gadCd', 'maxSpeed', 'nitroT', 'oilT', 'brk'];
 const WC = ['ang', 'dir', 'dmg', 'hits'];
 const WF = {
   sword: ['reach', 'spin'], dagger: ['reach', 'spin'], spear: ['reach'], bow: ['arrows', 'queue', 't'], ram: [],
@@ -3218,6 +3825,7 @@ function buildSnap() {
     oi: oils.map(o => [num(o.x, 10), num(o.y, 10), num(o.r, 10), num(o.t, 100)]),
     cl: clouds.map(c => [num(c.x, 10), num(c.y, 10), num(c.r, 10), num(c.t, 100)]),
     pk: pickups.map(p => [PK_ORDER.indexOf(p.type), num(p.x, 10), num(p.y, 10), num(p.age, 100)]),
+    hz: hazState(),
     fx: NET.fx.splice(0), au: NET.au.splice(0),
   };
 }
@@ -3233,11 +3841,11 @@ function netHostTick() {
   hostSend(snap, relayPlayers);
 }
 
-function netHostEnd() {
+function netHostEnd(board) {
   if (!NET.inMatch) return;
   const relayPlayers = NET.players.some(p => p.via === 'relay');
   hostSend(buildSnap(), relayPlayers);
-  hostSend({ t: 'end', m: NET.matchId, ko: lastKO ? [num(lastKO.x, 10), num(lastKO.y, 10)] : 0 });
+  hostSend({ t: 'end', m: NET.matchId, ko: lastKO ? [num(lastKO.x, 10), num(lastKO.y, 10)] : 0, board: board || 0 });
 }
 
 // ---------- client ----------
@@ -3290,16 +3898,42 @@ function clientOnMessage(m) {
       NET.off = NET.off === null ? off : NET.off + (off - NET.off) * (off > NET.off ? .3 : .02);
       break;
     }
-    case 'end': if (NET.inMatch && m.m === NET.matchId && state !== 'replay' && state !== 'over') clientEnd(m); break;
+    case 'round':
+      if (NET.inMatch && m.m === NET.matchId && m.board && state !== 'replay') {
+        NET.board = cleanBoard(m.board); state = 'over'; NET.boardAt = performance.now() + 6500;
+        showBoard(NET.board);
+      }
+      break;
+    case 'end':
+      if (NET.inMatch && m.m === NET.matchId && state !== 'replay' && state !== 'over') { NET.board = m.board ? cleanBoard(m.board) : null; clientEnd(m); }
+      break;
     case 'lobbyback': clientBackToLobby(); break;
   }
 }
 
+function cleanBoard(b) {
+  const n = v => (Number.isFinite(+v) ? +v : 0);
+  const w = b.winner && typeof b.winner === 'object' ? b.winner : null;
+  return {
+    round: n(b.round), target: n(b.target), done: !!b.done, team: !!b.team, mvp: n(b.mvp),
+    teamWins: Array.isArray(b.teamWins) ? [n(b.teamWins[0]), n(b.teamWins[1])] : [0, 0],
+    winner: w ? { name: String(w.name || '').slice(0, 24), color: safeColor(w.color), pid: String(w.pid || ''), team: n(w.team), id: n(w.id) } : 0,
+    rows: (Array.isArray(b.rows) ? b.rows : []).slice(0, 8).map(r => ({
+      id: n(r.id), pid: String(r.pid || ''), name: String(r.name || '').slice(0, 24), sub: String(r.sub || '').slice(0, 40),
+      color: safeColor(r.color), team: n(r.team), wins: n(r.wins), dmg: n(r.dmg), kos: n(r.kos),
+    })),
+  };
+}
+
 function clientLobby(m) {
-  const modeChanged = ARENAS[m.mode] && m.mode !== setup.mode, mapChanged = MAPS[m.map] && m.map !== setup.map;
+  const validMap = MAPS[m.map] || m.map === 'random';
+  const modeChanged = ARENAS[m.mode] && m.mode !== setup.mode, mapChanged = validMap && m.map !== setup.map;
   if (ARENAS[m.mode]) setup.mode = m.mode;
-  if (MAPS[m.map]) setup.map = m.map;
+  if (validMap) setup.map = m.map;
   if (DIFF[m.diff]) setup.diff = m.diff;
+  if ([0, 3, 5].includes(+m.rounds)) setup.rounds = +m.rounds;
+  if (['off', 'random', 'always'].includes(m.twists)) setup.twists = m.twists;
+  if (+m.size >= 3 && +m.size <= 8) setup.size = +m.size;
   NET.lobby = (Array.isArray(m.players) ? m.players : []).slice(0, MAX_PLAYERS).map(p => ({
     id: String(p.id || ''), name: cleanName(p.name), weapon: KIT[p.weapon] ? p.weapon : 'sword',
     gadget: GADGETS[p.gadget] ? p.gadget : 'grapple', via: p.via === 'relay' ? 'relay' : p.via === 'host' ? 'host' : 'direct',
@@ -3315,7 +3949,9 @@ function clientStart(m) {
   if (!Array.isArray(m.cars) || !m.cars.length) return;
   NET.matchId = m.m; NET.inMatch = true; NET.snaps = []; NET.off = null; NET.bnSnap = null; NET.recT = 0;
   NET.cnt = { boost: 0, special: 0, gadget: 0, ult: 0 };
-  prepareWorld(m.mode, m.map, m.diff);
+  NET.board = null;
+  round.n = +m.rd || 0; round.twist = TWISTS[m.tw] ? m.tw : null; round.map = MAPS[m.map] ? m.map : 'lot';
+  prepareWorld(m.mode, m.map, m.diff, Array.isArray(m.cars) ? m.cars.length : 8);
   cars = m.cars.slice(0, 8).map(([id, type, gadget, team, alt, pid, name, x, y, a], i) => {
     const w = KIT[type] ? type : 'sword', g = GADGETS[gadget] ? gadget : 'grapple';
     const c = makeCar(i, w, g, pid && pid === NET.myId ? 'p1' : pid ? 'net' : 'cpu', +team || 0, +x || AW / 2, +y || AH / 2, +a || 0, !!alt);
@@ -3323,6 +3959,8 @@ function clientStart(m) {
     return c;
   });
   hasHuman = true; twoPlayer = false;
+  seriesView.target = +m.tg || 0; seriesView.team = mode === 'team';
+  seriesView.wins = Array.isArray(m.sw) ? m.sw.map(v => +v || 0) : [];
   state = 'countdown'; countdown = 3; fightTime = 0;
   sfx.enabled = true; clearTaps();
   hideOverlay();
@@ -3331,7 +3969,7 @@ function clientStart(m) {
   $('setupView').hidden = true; $('rosterView').hidden = false;
   $('pauseBtn').hidden = true;
   $('quitBtn').textContent = 'Leave room';
-  $('rosterTitle').textContent = mode === 'duel' ? `${KIT[cars[0].type].name} vs ${KIT[cars[1].type].name}` : mode === 'team' ? '2v2' : 'Battle royale';
+  showRoundInfo();
   buildRoster();
   if (!cars.some(c => c.driver === 'p1')) netNote('You’re watching this match. You’ll get a seat in the next one if there’s room.');
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -3379,6 +4017,7 @@ function applySnap(a, b, f, rt) {
   oils = (b.oi || []).map(o => ({ x: o[0], y: o[1], r: o[2], t: o[3] }));
   clouds = (b.cl || []).map(c => ({ x: c[0], y: c[1], r: c[2], t: c[3] }));
   pickups = (b.pk || []).map(p => ({ type: PK_ORDER[p[0]] || 'repair', x: p[1], y: p[2], age: p[3] }));
+  applyHaz(b.hz);
 }
 
 function playSnapEvents(s) {
@@ -3415,7 +4054,7 @@ function clientCosmetics(dt) {
     if (!c.alive) { if (now - c.deadAt < 3.5 && Math.random() < dt * 8) smoke(c.x, c.y, 1); continue; }
     if (c.burrow > 0) continue;
     const fx = Math.cos(c.a), fy = Math.sin(c.a);
-    if (c.boostT > 0 && Math.random() < dt * 50) { const back = c.k.len / 2 + 2; addPart('flame', c.x - fx * back, c.y - fy * back, -fx * 140 + rand(-30, 30), -fy * 140 + rand(-30, 30), .22, rand(3, 6)); }
+    if (c.boostT > 0 && Math.random() < dt * 50) { const back = c.len / 2 + 2; addPart('flame', c.x - fx * back, c.y - fy * back, -fx * 140 + rand(-30, 30), -fy * 140 + rand(-30, 30), .22, rand(3, 6)); }
     if (c.ultT > 0 && Math.random() < dt * 24) addPart('flame', c.x + rand(-c.r, c.r), c.y + rand(-c.r, c.r), 0, -60, .35, rand(2, 4));
     if (c.type === 'flame' && c.emp <= 0 && Math.random() < dt * 36) {
       const a = c.w.ang + (c.ultT > 0 && Math.random() < .5 ? Math.PI : 0) + rand(-.25, .25), s = rand(260, 380);
@@ -3466,7 +4105,8 @@ function leaveRoom(msg) {
     const conns = [...NET.conns.values()], peer = NET.peer, relay = NET.relay;
     setTimeout(() => { conns.forEach(c => c.close()); if (peer) { try { peer.destroy(); } catch (_) {} } if (relay) relay.close(); }, 200);
   }
-  Object.assign(NET, { role: 'solo', code: '', players: [], peer: null, relay: null, hostConn: null, via: '', inMatch: false, startMsg: null, snaps: [], lobby: [] });
+  series = null;
+  Object.assign(NET, { role: 'solo', code: '', players: [], peer: null, relay: null, hostConn: null, via: '', inMatch: false, startMsg: null, snaps: [], lobby: [], board: null });
   NET.conns = new Map(); NET.inputs = new Map();
   backToSetupUI();
   netNote(msg || '', !!msg);
@@ -3496,7 +4136,7 @@ function netPick() {
 function renderPlayers() {
   const ul = $('playerList');
   ul.textContent = '';
-  const seats = setup.mode === 'duel' ? 2 : setup.mode === 'team' ? 4 : 8;
+  const seats = setup.mode === 'duel' ? 2 : setup.mode === 'team' ? 4 : 8, royaleCars = Math.min(8, Math.max(setup.size, NET.lobby.length));
   NET.lobby.forEach((p, i) => {
     const li = document.createElement('li'); li.className = 'player';
     const sw = document.createElement('span'); sw.className = 'sw'; sw.style.setProperty('--c', KIT[p.weapon].color);
@@ -3511,7 +4151,7 @@ function renderPlayers() {
   $('roomNote').textContent = setup.mode === 'duel'
     ? (n > 2 ? '1v1 seats the first 2 players; everyone else watches.' : n < 2 ? 'Waiting for a friend. A CPU takes the empty seat if you start now.' : 'Ready for a 1v1.')
     : setup.mode === 'team' ? `Players split between Red and Blue${n < 4 ? '; CPUs fill the empty seats' : ''}.${n > 4 ? ' Extra players watch.' : ''}`
-    : `${Math.max(0, 8 - n)} CPU car${8 - n === 1 ? '' : 's'} will join to make 8.`;
+    : royaleCars > n ? `${royaleCars - n} CPU car${royaleCars - n === 1 ? '' : 's'} will join to make ${royaleCars}.` : `${n} players, no CPUs.`;
 }
 
 function renderOnline() {
@@ -3520,7 +4160,7 @@ function renderOnline() {
   $('onRoom').hidden = !online;
   $('carsField').hidden = online;
   const locked = NET.role === 'client';
-  document.querySelectorAll('#modeSeg button, #diffSeg button, #mapGrid .map').forEach(b => { b.disabled = locked; });
+  document.querySelectorAll('#modeSeg button, #diffSeg button, #mapGrid .map, #roundsSeg button, #twistSeg button, #sizeSeg button').forEach(b => { b.disabled = locked; });
   $('startBtn').disabled = locked;
   if (!online) return;
   setup.sel = 0;
@@ -3580,6 +4220,7 @@ function step(dt) {
   updateClouds(dt);
   updateRings(dt);
   updatePickups(dt);
+  updateHazards(dt);
   lavaEmbers(dt);
   if (state === 'fight' && (stepCount & 1)) recordFrame();
   checkMatch(dt);
@@ -3606,8 +4247,12 @@ function render() {
   ctx.setTransform(s, 0, 0, s, cv.width / 2 - (cx + ox) * s, cv.height / 2 - (cy + oy) * s);
   ctx.fillStyle = '#1D1F23'; ctx.fillRect(-40, -40, AW + 80, AH + 80);
   ctx.drawImage(groundCv, 0, 0, AW, AH);
+  if (level.iceTwist) { ctx.fillStyle = 'rgba(200,232,248,.22)'; ctx.fillRect(WALL, WALL, AW - 2 * WALL, AH - 2 * WALL); }
   drawZoneGlow();
+  const hz = state === 'replay' && replay ? S2.hz : hazState();
+  drawHazards(hz);
   drawOils(S2.oils); drawClouds(S2.clouds); drawPickups(S2.pickups); drawMines(S2.mines);
+  drawBeams(S2.cars);
   for (const c of S2.cars) if (!c.alive) drawCar(c, true);
   for (const c of S2.cars) if (c.alive && !(c.air > 0)) drawCar(c, false);
   for (const c of S2.cars) if (c.alive && !(c.air > 0)) drawWeapon(c);
@@ -3615,6 +4260,7 @@ function render() {
   for (const c of S2.cars) if (c.alive && c.air > 0) { drawCar(c, false); drawWeapon(c); }
   drawRings();
   drawParticles();
+  if (round.twist === 'night') drawNight(S2, hz, s, cv.width / 2 - (cx + ox) * s, cv.height / 2 - (cy + oy) * s);
   for (const c of S2.cars) if (c.alive) drawLabels(c);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (state === 'replay') {
@@ -3633,6 +4279,17 @@ function drawBigText() {
   ctx.translate(AW / 2, AH / 2);
   let text, size;
   if (counting) {
+    ctx.lineWidth = 7; ctx.strokeStyle = '#17191C';
+    if (round.n) {
+      ctx.font = '34px Bungee,"Arial Black",Impact,sans-serif';
+      ctx.strokeText(`ROUND ${round.n}`, 0, -122); ctx.fillStyle = '#FFFFFF'; ctx.fillText(`ROUND ${round.n}`, 0, -122);
+    }
+    const tw = TWISTS[round.twist];
+    if (tw) {
+      const t = 'TWIST: ' + tw.name.toUpperCase();
+      ctx.font = '38px Bungee,"Arial Black",Impact,sans-serif';
+      ctx.strokeText(t, 0, 128); ctx.fillStyle = '#FF7AD9'; ctx.fillText(t, 0, 128);
+    }
     text = String(Math.max(1, Math.ceil(countdown))); size = 150;
     if (!reduceMotion) { const k = 1 + (countdown - Math.floor(countdown)) * .35; ctx.scale(k, k); }
   } else {
@@ -3645,6 +4302,43 @@ function drawBigText() {
   ctx.restore();
 }
 
+// Night Drive: darkness everywhere except what cars, headlights, fire and explosions light up
+const darkCv = document.createElement('canvas'), dctx = darkCv.getContext('2d');
+const glowSprite = (() => {
+  const s = document.createElement('canvas'); s.width = s.height = 128;
+  const g = s.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.55, 'rgba(0,0,0,.8)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  return s;
+})();
+function drawNight(S2, hz, s, tx, ty) {
+  if (darkCv.width !== cv.width || darkCv.height !== cv.height) { darkCv.width = cv.width; darkCv.height = cv.height; }
+  const d = dctx;
+  d.globalCompositeOperation = 'source-over'; d.globalAlpha = 1; d.setTransform(1, 0, 0, 1, 0, 0);
+  d.fillStyle = 'rgba(3,5,12,.93)'; d.fillRect(0, 0, darkCv.width, darkCv.height);
+  d.globalCompositeOperation = 'destination-out';
+  d.setTransform(s, 0, 0, s, tx, ty);
+  const glow = (x, y, r, a) => { d.globalAlpha = a; d.drawImage(glowSprite, x - r, y - r, r * 2, r * 2); };
+  for (const c of S2.cars) {
+    if (!c.alive) { if (now - c.deadAt < 3) glow(c.x, c.y, 50, .6); continue; }
+    glow(c.x, c.y, c.r + 34, 1);
+    if (c.burrow > 0) continue;
+    const f = c.len / 2 - 2, L = 330 * c.sc, H = L * 176 / 256;
+    d.save(); d.translate(c.x, c.y); d.rotate(c.a); d.globalAlpha = 1;
+    d.drawImage(beamSprite, f, -H / 2, L, H); d.drawImage(beamSprite, f, -H / 2, L, H);
+    d.restore();
+    if (c.type === 'flame' && c.emp <= 0) { const R = c.r + c.w.range * .5; glow(c.x + Math.cos(c.w.ang) * R, c.y + Math.sin(c.w.ang) * R, c.w.range * .6, .9); }
+  }
+  for (const z of level.zones) if (z.kind === 'lava') glow(z.x, z.y, z.r * 1.6, .9);
+  for (const r of rings) glow(r.x, r.y, r.max, Math.max(0, 1 - r.t / r.T));
+  let n = 0;
+  for (const p of parts) if (p.k === 'flame' && n++ < 60) glow(p.x, p.y, 18, .45);
+  for (const pk of S2.pickups) glow(pk.x, pk.y, 34, .75);
+  if (hz && Array.isArray(hz.m)) for (const m of hz.m) glow(m[0], m[1], m[4] + 24, .9);
+  d.globalAlpha = 1; d.globalCompositeOperation = 'source-over';
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(darkCv, 0, 0); ctx.restore();
+}
+
 // ---------- main loop ----------
 let last = 0, acc = 0;
 function frame(t) {
@@ -3655,7 +4349,7 @@ function frame(t) {
   else if (state !== 'paused') {
     if (freeze > 0) freeze -= dt;
     else {
-      acc += dt;
+      acc += dt * (round.twist === 'turbo' && state === 'fight' ? 1.35 : 1);
       let n = 0;
       while (acc >= STEP && n < 8) { step(STEP); acc -= STEP; n++; }
       if (n >= 8) acc = 0;
@@ -3664,7 +4358,9 @@ function frame(t) {
     shake = Math.max(0, shake - dt * 38);
     if (banner.t > 0) banner.t -= dt;
   }
+  for (const o of level.obstacles) if (o.flash > 0) o.flash = Math.max(0, o.flash - dt);
   if (NET.role === 'host') netHostTick();
+  boardTick();
   render();
   rosterTick(dt);
   requestAnimationFrame(frame);
